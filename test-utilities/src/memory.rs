@@ -330,6 +330,8 @@ impl IMMU for TestMMU {
             return Err(MMUError::Borrowed);
         }
 
+        panic!("asdasd");
+
         let slice = mem.slice_mut();
 
         mapped.insert(vaddr, mem);
