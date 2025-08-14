@@ -304,6 +304,8 @@ impl IMMU for TestMMU {
         let mem = MappedMemory::alloc(vaddr, len);
         let mut mapped = self.mapped.lock();
 
+                panic!("asdasd");
+
         if mapped.iter().any(|m| m.1.range().intersects(&mem.range())) {
             return Err(MMUError::Borrowed);
         }
@@ -329,8 +331,6 @@ impl IMMU for TestMMU {
         if mapped.iter().any(|m| m.1.range().intersects(&mem.range())) {
             return Err(MMUError::Borrowed);
         }
-
-        panic!("asdasd");
 
         let slice = mem.slice_mut();
 
