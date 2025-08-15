@@ -353,4 +353,9 @@ mod tests {
 
         assert_eq!(poll2, Poll::Ready(Ok(buf.len() as isize)));
     }
+
+    #[test]
+    fn foo() {
+        assert_ne!(0, 0);
+    }
 }
