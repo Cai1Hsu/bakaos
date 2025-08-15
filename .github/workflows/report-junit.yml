@@ -33,10 +33,15 @@ jobs:
           github-token: ${{ github.token }}
 
       - name: Annotate CI run with test results
-        uses: Cai1Hsu/test-reporter@main
+        uses: mikepenz/action-junit-report@v5
         with:
           name: Results
-          path: test-results-*/junit.xml
-          reporter: nextest-junit
-          list-tests: 'failed'
-          list-suites: 'failed'
+          report_paths: test-results-*/junit.xml
+          commit: ${{ github.event.workflow_run.head_sha }}
+          truncate_stack_traces: false
+          check_annotations: true
+          detailed_summary: true
+          follow_symlink: true
+          update_check: true
+          group_suite: true
+          comment: true
