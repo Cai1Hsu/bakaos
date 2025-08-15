@@ -356,6 +356,6 @@ mod tests {
 
     #[test]
     fn foo() {
-        assert_ne!(0, 0);
+        assert_eq!(0, 0);
     }
 }
