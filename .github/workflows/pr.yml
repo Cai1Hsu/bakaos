@@ -1,0 +1,29 @@
+name: Ensure maintainers can modify
+
+on:
+  pull_request_target:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+job:
+  name: Ensure maintainers can modify
+  steps:
+    - name: Ensure maintainers can modify
+      env:
+        GH_TOKEN: ${{ github.token }}
+      shell: bash
+      run: |
+        PR_INFO=${{ github.event.pull_request }}
+
+        # extract author login and maintainer_can_modify fields
+        AUTHOR_LOGIN=`echo $PR_INFO | jq -r '.user.login'`
+        MAINTAINER_CAN_MODIFY=`echo $PR_INFO | jq -r '.maintainer_can_modify'`
+
+        # ask for modify permission
+        if [ "$MAINTAINER_CAN_MODIFY" = "false" ]; then
+          gh pr comment ${{ github.event.pull_request.number }} --body "Hello @$AUTHOR_LOGIN, please check the 'Allow edits and access to secrets by maintainers' option in the pull request settings. We may need to modify the pull request."
+        fi
