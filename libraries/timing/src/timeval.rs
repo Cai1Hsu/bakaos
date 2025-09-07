@@ -199,10 +199,8 @@ impl TimeVal {
     /// assert_eq!(tv2.tv_usec, 800_000);
     /// ```
     pub fn add_usec(&mut self, usec: i64) {
-        self.tv_sec += usec / USEC_PER_SEC;
-        self.tv_usec += usec % USEC_PER_SEC;
-
-        // Handle overflow/underflow for microseconds
+        self.tv_sec += usec.div_euclid(USEC_PER_SEC);
+        self.tv_usec += usec.rem_euclid(USEC_PER_SEC);
         if self.tv_usec >= USEC_PER_SEC {
             self.tv_sec += self.tv_usec / USEC_PER_SEC;
             self.tv_usec %= USEC_PER_SEC;
