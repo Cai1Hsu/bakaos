@@ -93,7 +93,7 @@ jobs:
         id: lint
         working-directory: ${{ matrix.target.cwd }}
         if: ${{ success() || failure() }}
-        run: cargo clippy --target ${{ matrix.target.triplet }} -- -D warnings
+        run: cargo clippy --all-targets --target ${{ matrix.target.triplet }} -- -D warnings
 
       - name: Conclude
         if: ${{ always() }}
