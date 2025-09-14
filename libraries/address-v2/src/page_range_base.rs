@@ -207,9 +207,7 @@ macro_rules! impl_page_range {
             /// ```
             pub fn contains(&self, page: $page_type) -> bool {
                 // Pages must have the same size to be comparable
-                if self.start.size() != page.size() {
-                    return false;
-                }
+                debug_assert!(self.start.size() == page.size());
 
                 let start_addr = *self.start().addr();
                 let end_addr = *self.end().addr();
