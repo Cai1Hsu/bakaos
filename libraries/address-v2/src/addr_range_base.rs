@@ -3,7 +3,7 @@ macro_rules! impl_range {
     ($range_type:tt, $addr_type:tt, $(#[$doc:meta])*) => {
         $(#[$doc])*
         #[repr(C)]
-        #[derive(Clone, Copy, Eq, PartialEq)]
+        #[derive(Clone, Copy, Eq)]
         pub struct $range_type {
             start: $addr_type,
             end: $addr_type,
@@ -12,6 +12,13 @@ macro_rules! impl_range {
         impl ::core::fmt::Debug for $range_type {
             fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
                 write!(f, concat!(stringify!($range_type), "({:?}..{:?})"), self.start, self.end)
+            }
+        }
+
+        impl const ::core::cmp::PartialEq for $range_type {
+            #[inline(always)]
+            fn eq(&self, other: &Self) -> bool {
+                self.start == other.start && self.end == other.end
             }
         }
 

@@ -2,7 +2,7 @@ macro_rules! impl_page {
     ($page_type:tt, $addr_type:tt, $range_type:tt, $(#[$doc:meta])*) => {
         $(#[$doc])*
         #[repr(C)]
-        #[derive(Clone, Copy, Eq, PartialEq)]
+        #[derive(Clone, Copy, Eq)]
         pub struct $page_type {
             addr: $addr_type,
             size: usize, // TODO: should we use a enum for common sizes?
@@ -309,6 +309,13 @@ macro_rules! impl_page {
             #[inline(always)]
             fn sub_assign(&mut self, rhs: usize) {
                 self.addr -= rhs * self.size;
+            }
+        }
+
+        impl const ::core::cmp::PartialEq for $page_type {
+            #[inline(always)]
+            fn eq(&self, other: &Self) -> bool {
+                self.addr == other.addr && self.size == other.size
             }
         }
 
