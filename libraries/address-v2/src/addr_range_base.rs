@@ -320,8 +320,8 @@ macro_rules! impl_range {
         impl ::core::iter::ExactSizeIterator for RangeIterator
         {
             fn len(&self) -> usize {
-                let current_usize: usize = self.current.into();
-                let end_usize: usize = self.end.into();
+                let current_usize: usize = *self.current;
+                let end_usize: usize = *self.end;
 
                 debug_assert!(current_usize <= end_usize);
 
