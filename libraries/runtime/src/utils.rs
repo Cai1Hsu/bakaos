@@ -24,7 +24,7 @@ macro_rules! symbol_ptr {
     ($sym:literal as $t:ty) => {{
         #[allow(unused_unsafe)]
         unsafe {
-            ::core::ptr::NonNull::new_unchecked(symbol_ptr!($sym) as *mut $t)
+            ::core::ptr::NonNull::new_unchecked($crate::symbol_ptr!($sym) as *mut $t)
         }
     }};
 }
