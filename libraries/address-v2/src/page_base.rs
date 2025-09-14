@@ -54,33 +54,6 @@ macro_rules! impl_page {
                 Self::new_custom(addr, Self::SIZE_4K)
             }
 
-            /// Creates a new 4KB page at the specified address without alignment validation.
-            ///
-            /// # Safety
-            /// This function does not validate address alignment. The caller must ensure
-            /// that the address is properly aligned to 4KB boundaries if alignment is required
-            /// for the intended use case.
-            ///
-            /// # Parameters
-            /// - `addr`: The starting address of the page
-            ///
-            /// # Returns
-            /// A new page object with 4KB size
-            ///
-            /// # Examples
-            /// ```rust
-            /// # use address_v2::{PhysPage, PhysAddr};
-            /// // Safe: properly aligned address
-            /// let page = PhysPage::new_4k_unchecked(PhysAddr::new(0x1000));
-            ///
-            /// // Potentially unsafe: unaligned address
-            /// let unaligned = PhysPage::new_4k_unchecked(PhysAddr::new(0x1001));
-            /// ```
-            #[inline(always)]
-            pub const fn new_4k_unchecked(addr: $addr_type) -> Self {
-                Self { addr, size: Self::SIZE_4K }
-            }
-
             /// Creates a new 2MB page at the specified address.
             ///
             /// This function validates that the address is properly aligned to 2MB boundaries.
@@ -107,23 +80,6 @@ macro_rules! impl_page {
 
             }
 
-            /// Creates a new 2MB page at the specified address without alignment validation.
-            ///
-            /// # Safety
-            /// This function does not validate address alignment. The caller must ensure
-            /// that the address is properly aligned to 2MB boundaries if alignment is required
-            /// for the intended use case.
-            ///
-            /// # Parameters
-            /// - `addr`: The starting address of the page
-            ///
-            /// # Returns
-            /// A new page object with 2MB size
-            #[inline(always)]
-            pub const fn new_2m_unchecked(addr: $addr_type) -> Self {
-                Self { addr, size: Self::SIZE_2M }
-            }
-
             /// Creates a new 1GB page at the specified address.
             ///
             /// This function validates that the address is properly aligned to 1GB boundaries.
@@ -148,23 +104,6 @@ macro_rules! impl_page {
             pub const fn new_1g(addr: $addr_type) -> Option<Self> {
                 Self::new_custom(addr, Self::SIZE_1G)
 
-            }
-
-            /// Creates a new 1GB page at the specified address without alignment validation.
-            ///
-            /// # Safety
-            /// This function does not validate address alignment. The caller must ensure
-            /// that the address is properly aligned to 1GB boundaries if alignment is required
-            /// for the intended use case.
-            ///
-            /// # Parameters
-            /// - `addr`: The starting address of the page
-            ///
-            /// # Returns
-            /// A new page object with 1GB size
-            #[inline(always)]
-            pub const fn new_1g_unchecked(addr: $addr_type) -> Self {
-                Self { addr, size: Self::SIZE_1G }
             }
 
             /// Creates a new page with a custom size at the specified address.
@@ -394,18 +333,6 @@ macro_rules! impl_page {
                 assert_eq!(page_high.size(), $page_type::SIZE_4K);
             }
 
-            #[test]
-            fn test_new_4k_unchecked() {
-                // Test that unchecked version works with any address
-                let page1 = $page_type::new_4k_unchecked($addr_type::new(0x1000));
-                assert_eq!(page1.size(), $page_type::SIZE_4K);
-
-                // Even unaligned addresses should work (though not recommended)
-                let page2 = $page_type::new_4k_unchecked($addr_type::new(0x1001));
-                assert_eq!(page2.size(), $page_type::SIZE_4K);
-                assert_eq!(*page2.addr(), 0x1001);
-            }
-
             /// Test the 2M page constructors
             #[test]
             fn test_new_2m() {
@@ -420,16 +347,6 @@ macro_rules! impl_page {
                 assert_eq!(page_0.size(), $page_type::SIZE_2M);
             }
 
-            #[test]
-            fn test_new_2m_unchecked() {
-                let page1 = $page_type::new_2m_unchecked($addr_type::new(0x200000));
-                assert_eq!(page1.size(), $page_type::SIZE_2M);
-
-                // Unaligned address
-                let page2 = $page_type::new_2m_unchecked($addr_type::new(0x100000));
-                assert_eq!(page2.size(), $page_type::SIZE_2M);
-            }
-
             /// Test the 1G page constructors
             #[test]
             fn test_new_1g() {
@@ -442,16 +359,6 @@ macro_rules! impl_page {
                 // Test zero address
                 let page_0 = $page_type::new_1g($addr_type::new(0x0)).unwrap();
                 assert_eq!(page_0.size(), $page_type::SIZE_1G);
-            }
-
-            #[test]
-            fn test_new_1g_unchecked() {
-                let page1 = $page_type::new_1g_unchecked($addr_type::new(0x40000000));
-                assert_eq!(page1.size(), $page_type::SIZE_1G);
-
-                // Unaligned address
-                let page2 = $page_type::new_1g_unchecked($addr_type::new(0x20000000));
-                assert_eq!(page2.size(), $page_type::SIZE_1G);
             }
 
             /// Test custom page size constructors
@@ -768,7 +675,7 @@ macro_rules! impl_page {
                 // Test with large aligned addresses
                 let max_addr_4k = usize::MAX & (!($page_type::SIZE_4K - 1)); // Max 4K aligned address
 
-                let page_max = $page_type::new_4k_unchecked($addr_type::new(max_addr_4k));
+                let page_max = $page_type::new_4k($addr_type::new(max_addr_4k)).unwrap();
                 assert_eq!(*page_max.addr(), max_addr_4k);
 
                 // Test with 1G alignment
