@@ -35,12 +35,12 @@ macro_rules! impl_range {
             }
 
             /// Creates a new range from start and end addresses without checking.
-            /// 
+            ///
             /// # Safety
             /// The caller must ensure that start <= end.
-            /// 
+            ///
             /// # Examples
-            /// 
+            ///
             /// ```
             /// # use address_v2::{PhysAddr, PaddrRange};
             /// let range = unsafe { PaddrRange::new_unchecked(PhysAddr::new(0x1000), PhysAddr::new(0x2000)) };
