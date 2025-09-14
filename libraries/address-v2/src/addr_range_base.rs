@@ -221,6 +221,7 @@ macro_rules! impl_range {
             }
 
             /// Returns an iterator over addresses in this range with the given step size.
+            /// Returns `None` if `step == 0` or if the range length is not a multiple of `step`.
             ///
             /// # Examples
             /// ```
@@ -501,7 +502,7 @@ macro_rules! impl_range {
                 assert!(range.iter_step(0x2000).is_none()); // length not multiple of step
 
                 let iter = unsafe { RangeIterator::new_unchecked(range, 0x2000) };
-                assert_eq!(iter.len(), 0); // only one step fits
+                assert_eq!(iter.len(), 0); // no steps fit
             }
 
             #[test]
