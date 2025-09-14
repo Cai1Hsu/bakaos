@@ -32,7 +32,17 @@ macro_rules! symbol_ptr {
         __get_sym()
     }};
     ($sym:literal as $t:ty) => {{
-        ::core::ptr::NonNull::new_unchecked($crate::symbol_ptr!($sym) as *mut $t)
+        #[doc(hidden)]
+        #[inline(always)]
+        const unsafe fn __as_nonnull() -> ::core::ptr::NonNull<$t> {
+            const PTR: *const () = unsafe { $crate::symbol_ptr!($sym) };
+            const _: () = assert!(!PTR.is_null(), "The symbol pointer must not be null"); // null check at compile time if possible
+
+            // SAFETY: PTR is not null, and the caller must ensure the symbol is valid for type $t
+            ::core::ptr::NonNull::new_unchecked(PTR as *mut $t)
+        }
+
+        __as_nonnull()
     }};
 }
 
@@ -54,10 +64,14 @@ mod tests {
         let p1 = P1 as usize;
         let p2 = P2.as_ptr() as usize;
         let p3 = P3.as_ptr() as usize;
+        let p4 = unsafe { symbol_ptr!("__test_symbol") as usize }; // resolved at runtime
+        let p5 = unsafe { symbol_ptr!("__test_symbol" as u8) }.as_ptr() as usize;
 
         assert_eq!(expected, p1);
         assert_eq!(expected, p2);
         assert_eq!(expected, p3);
+        assert_eq!(expected, p4);
+        assert_eq!(expected, p5);
 
         let _ = TEST_SYMBOL; // keep symbol from being optimized out
     }
