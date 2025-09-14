@@ -772,25 +772,25 @@ macro_rules! impl_addr {
 
             #[test]
             fn test_addr_non_power_of_two_align() {
-                let addr = $type::new(0x1234);
+                let addr = $type::new(1024);
 
                 // Test align_down with non-power-of-two alignment
-                let aligned_down = addr.align_down(0x100);
-                assert_eq!(*aligned_down, 0x1200);
+                let aligned_down = addr.align_down(100);
+                assert_eq!(*aligned_down, 1000);
 
                 // Test align_up with non-power-of-two alignment
-                let aligned_up = addr.align_up(0x100);
-                assert_eq!(*aligned_up, 0x1300);
+                let aligned_up = addr.align_up(100);
+                assert_eq!(*aligned_up, 1100);
 
                 // Test is_aligned with non-power-of-two alignment
-                assert!(!addr.is_aligned(0x100));
-                assert!(aligned_down.is_aligned(0x100));
-                assert!(aligned_up.is_aligned(0x100));
+                assert!(!addr.is_aligned(100));
+                assert!(aligned_down.is_aligned(100));
+                assert!(aligned_up.is_aligned(100));
 
                 // Test offset_from_alignment with non-power-of-two alignment
-                assert_eq!(addr.offset_from_alignment(0x100), 0x34);
-                assert_eq!(aligned_down.offset_from_alignment(0x100), 0);
-                assert_eq!(aligned_up.offset_from_alignment(0x100), 0);
+                assert_eq!(addr.offset_from_alignment(100), 24);
+                assert_eq!(aligned_down.offset_from_alignment(100), 0);
+                assert_eq!(aligned_up.offset_from_alignment(100), 0);
             }
 
             #[test]
