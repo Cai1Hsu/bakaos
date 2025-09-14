@@ -233,7 +233,7 @@ mod virt_addr_tests {
             addr.as_ptr()
         });
 
-        test_virt_addr_as_ptr_scene(0 as *mut i32, || {
+        test_virt_addr_as_ptr_scene(std::ptr::null_mut::<i32>(), || {
             let null_addr = VirtAddr::null;
             null_addr.as_mut_ptr()
         });
