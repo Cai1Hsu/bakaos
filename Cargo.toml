@@ -7,6 +7,7 @@ members = [
     "libraries/utilities",
     "libraries/timing",
     "libraries/address",
+    "libraries/address-v2",
     "libraries/path",
     "libraries/threading",
     "libraries/constants",
