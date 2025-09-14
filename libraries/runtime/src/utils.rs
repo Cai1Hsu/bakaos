@@ -9,6 +9,8 @@ pub use ::utilities::*; // reexport `utilities`` crate
 /// let start = symbol_ptr!("_start") as *const fn(usize) -> !;
 /// let main = symbol_ptr!("main") as usize;
 /// ```
+/// # Safety
+/// Accessing the pointer to a symbol is unsafe, `unsafe` is required to call this macro.
 #[macro_export]
 macro_rules! symbol_ptr {
     ($sym:literal) => {{
@@ -19,13 +21,18 @@ macro_rules! symbol_ptr {
             static __SYM: ();
         }
 
-        ::core::ptr::addr_of!(__SYM)
+        // Accessing the pointer to a symbol is unsafe,
+        // We use a `unsafe` function, so that the caller must call this macro within an `unsafe` block.
+        #[doc(hidden)]
+        #[inline(always)] // by utilizing inline and const fn, we can avoid any runtime overhead
+        const unsafe fn __get_sym() -> *const () {
+            ::core::ptr::addr_of!(__SYM)
+        }
+
+        __get_sym()
     }};
     ($sym:literal as $t:ty) => {{
-        #[allow(unused_unsafe)]
-        unsafe {
-            ::core::ptr::NonNull::new_unchecked($crate::symbol_ptr!($sym) as *mut $t)
-        }
+        ::core::ptr::NonNull::new_unchecked($crate::symbol_ptr!($sym) as *mut $t)
     }};
 }
 
@@ -36,9 +43,9 @@ mod tests {
     #[unsafe(export_name = "__test_symbol")]
     static TEST_SYMBOL: u8 = 0;
 
-    const P1: *const () = symbol_ptr!("__test_symbol");
-    const P2: NonNull<()> = symbol_ptr!("__test_symbol" as ());
-    const P3: NonNull<u8> = symbol_ptr!("__test_symbol" as u8);
+    const P1: *const () = unsafe { symbol_ptr!("__test_symbol") };
+    const P2: NonNull<()> = unsafe { symbol_ptr!("__test_symbol" as ()) };
+    const P3: NonNull<u8> = unsafe { symbol_ptr!("__test_symbol" as u8) };
 
     #[test]
     fn test_symbol_ptr_same_address() {

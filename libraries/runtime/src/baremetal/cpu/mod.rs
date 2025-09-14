@@ -29,8 +29,8 @@ mod boot_required {
     }
 
     pub(crate) fn alloc_cpu_local_storage(cpuid: u32) -> NonNull<CpuLocalStorage> {
-        let template_start = symbol_ptr!("__scls" as u8);
-        let template_end = symbol_ptr!("__ecls" as u8);
+        let template_start = unsafe { symbol_ptr!("__scls" as u8) };
+        let template_end = unsafe { symbol_ptr!("__ecls" as u8) };
 
         let cls_len = template_end.as_ptr() as usize - template_start.as_ptr() as usize;
 
