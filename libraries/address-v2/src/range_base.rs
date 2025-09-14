@@ -11,7 +11,7 @@ macro_rules! impl_range {
 
         impl ::core::fmt::Debug for $range_type {
             fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
-                write!(f, concat!(stringify!($range_type), "({}..{})"), self.start, self.end)
+                write!(f, concat!(stringify!($range_type), "({:?}..{:?})"), self.start, self.end)
             }
         }
 
@@ -30,7 +30,24 @@ macro_rules! impl_range {
             #[inline(always)]
             pub const fn new(start: $addr_type, end: $addr_type) -> Self {
                 // Use deref to access the inner usize value
-                assert!(*start <= *end, "Range start must be <= end");
+                debug_assert!(*start <= *end, "Range start must be <= end");
+                Self { start, end }
+            }
+
+            /// Creates a new range from start and end addresses without checking.
+            /// 
+            /// # Safety
+            /// The caller must ensure that start <= end.
+            /// 
+            /// # Examples
+            /// 
+            /// ```
+            /// # use address_v2::{PhysAddr, PaddrRange};
+            /// let range = unsafe { PaddrRange::new_unchecked(PhysAddr::new(0x1000), PhysAddr::new(0x2000)) };
+            /// assert_eq!(range.len(), 0x1000);
+            /// ```
+            #[inline(always)]
+            pub const unsafe fn new_unchecked(start: $addr_type, end: $addr_type) -> Self {
                 Self { start, end }
             }
 
@@ -235,7 +252,7 @@ macro_rules! impl_range {
         impl const ::core::default::Default for $range_type {
             #[inline(always)]
             fn default() -> Self {
-                Self::new($addr_type::null, $addr_type::null)
+                unsafe { Self::new_unchecked($addr_type::null, $addr_type::null) }
             }
         }
 
@@ -252,7 +269,7 @@ macro_rules! impl_range {
             pub const fn new(range: $range_type, step: usize) -> Option<Self> {
                 let len: usize = *range.end - *range.start;
 
-                if len.is_multiple_of(step) {
+                if step != 0 && len.is_multiple_of(step) {
                     Some(Self {
                         current: range.start,
                         end: range.end,
