@@ -1,13 +1,8 @@
-use crate::symbol_addr;
+use crate::symbol_ptr;
 use core::ptr::NonNull;
 
 pub(crate) fn clear_bss() {
-    unsafe {
-        clear_bss_range(
-            NonNull::new(symbol_addr!(__sbss) as *mut u8).unwrap(),
-            NonNull::new(symbol_addr!(__ebss) as *mut u8).unwrap(),
-        )
-    }
+    unsafe { clear_bss_range(symbol_ptr!("__sbss" as u8), symbol_ptr!("__ebss" as u8)) }
 }
 
 /// Converts a pointer to a per-CPU local storage address.

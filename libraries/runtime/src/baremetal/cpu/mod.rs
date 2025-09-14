@@ -13,7 +13,7 @@ mod boot_required {
 
     use crate::{
         baremetal::{alloc_frame, cpu::cls::CpuLocalStorage},
-        symbol_addr,
+        symbol_ptr,
     };
 
     pub(crate) fn alloc_cpu_id() -> u32 {
@@ -29,8 +29,8 @@ mod boot_required {
     }
 
     pub(crate) fn alloc_cpu_local_storage(cpuid: u32) -> NonNull<CpuLocalStorage> {
-        let template_start = NonNull::new(symbol_addr!(__scls) as *mut u8).unwrap();
-        let template_end = NonNull::new(symbol_addr!(__ecls) as *mut u8).unwrap();
+        let template_start = symbol_ptr!("__scls" as u8);
+        let template_end = symbol_ptr!("__ecls" as u8);
 
         let cls_len = template_end.as_ptr() as usize - template_start.as_ptr() as usize;
 

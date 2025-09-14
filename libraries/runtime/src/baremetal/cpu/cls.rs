@@ -1,4 +1,4 @@
-use crate::symbol_addr;
+use crate::symbol_ptr;
 
 #[repr(C)]
 pub(crate) struct CpuLocalStorage {
@@ -25,7 +25,7 @@ pub(crate) static CPU0: CpuLocalStorage = CpuLocalStorage {
 #[inline(always)]
 pub(super) unsafe fn get_cpu_local_base(ptr: *mut u8) -> *mut u8 {
     let vaddr = ptr as usize;
-    let base = symbol_addr!(__scls) as usize;
+    let base = symbol_ptr!("__scls") as usize;
 
     debug_assert!(vaddr >= base);
 
