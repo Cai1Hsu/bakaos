@@ -33,7 +33,15 @@ macro_rules! impl_addr {
             /// ```
             #[inline(always)]
             pub const fn align_down(self, align: usize) -> Self {
-                Self(self.0 & !(align - 1))
+                // Usually the given align is a constant value
+                // By inlining this function, the compiler selects the optimal code path
+                // Same for other alignment related functions
+
+                if align.is_power_of_two() {
+                    Self(self.0 & !(align - 1))
+                } else {
+                    Self(self.0 - (self.0 % align))
+                }
             }
 
             /// Aligns the address up to the given alignment.
@@ -47,7 +55,11 @@ macro_rules! impl_addr {
             /// ```
             #[inline(always)]
             pub const fn align_up(self, align: usize) -> Self {
-                Self((self.0 + align - 1) & !(align - 1))
+                if align.is_power_of_two() {
+                    Self((self.0 + align - 1) & !(align - 1))
+                } else {
+                    Self(self.0.next_multiple_of(align))
+                }
             }
 
             /// Checks if the address is aligned to the given alignment.
@@ -61,7 +73,11 @@ macro_rules! impl_addr {
             /// ```
             #[inline(always)]
             pub const fn is_aligned(self, align: usize) -> bool {
-                self.0 & (align - 1) == 0
+                if align.is_power_of_two() {
+                    (self.0 & (align - 1)) == 0
+                } else {
+                    self.0.is_multiple_of(align)
+                }
             }
 
             /// Returns the offset from the given alignment.
@@ -74,7 +90,11 @@ macro_rules! impl_addr {
             /// ```
             #[inline(always)]
             pub const fn offset_from_alignment(self, align: usize) -> usize {
-                self.0 & (align - 1)
+                if align.is_power_of_two() {
+                    self.0 & (align - 1)
+                } else {
+                    self.0 % align
+                }
             }
         }
 
