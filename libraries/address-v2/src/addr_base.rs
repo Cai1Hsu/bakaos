@@ -769,6 +769,61 @@ macro_rules! impl_addr {
                 assert_eq!(addr_in_page.align_down(page_size), page_start);
                 assert_eq!(addr_in_page.align_up(page_size), page_end);
             }
+
+            #[test]
+            fn test_addr_non_power_of_two_align() {
+                let addr = $type::new(0x1234);
+
+                // Test align_down with non-power-of-two alignment
+                let aligned_down = addr.align_down(0x100);
+                assert_eq!(*aligned_down, 0x1200);
+
+                // Test align_up with non-power-of-two alignment
+                let aligned_up = addr.align_up(0x100);
+                assert_eq!(*aligned_up, 0x1300);
+
+                // Test is_aligned with non-power-of-two alignment
+                assert!(!addr.is_aligned(0x100));
+                assert!(aligned_down.is_aligned(0x100));
+                assert!(aligned_up.is_aligned(0x100));
+
+                // Test offset_from_alignment with non-power-of-two alignment
+                assert_eq!(addr.offset_from_alignment(0x100), 0x34);
+                assert_eq!(aligned_down.offset_from_alignment(0x100), 0);
+                assert_eq!(aligned_up.offset_from_alignment(0x100), 0);
+            }
+
+            #[test]
+            #[cfg(debug_assertions)]
+            #[should_panic]
+            fn test_align_down_zero_align() {
+                let addr = $type::new(0x1234);
+                let _ = addr.align_down(0); // Should panic in debug mode
+            }
+
+            #[test]
+            #[cfg(debug_assertions)]
+            #[should_panic]
+            fn test_align_up_zero_align() {
+                let addr = $type::new(0x1234);
+                let _ = addr.align_up(0); // Should panic in debug mode
+            }
+
+            #[test]
+            #[cfg(debug_assertions)]
+            #[should_panic]
+            fn test_offset_from_alignment_zero_align() {
+                let addr = $type::new(0x1234);
+                let _ = addr.offset_from_alignment(0); // Should panic in debug mode
+            }
+
+            #[test]
+            #[cfg(debug_assertions)]
+            #[should_panic]
+            fn test_is_aligned_zero_align() {
+                let addr = $type::new(0x1234);
+                let _ = addr.is_aligned(0); // Should panic in debug modes
+            }
         }
     };
 }
