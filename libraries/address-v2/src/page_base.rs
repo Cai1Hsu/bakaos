@@ -228,7 +228,7 @@ macro_rules! impl_page {
 
             /// Attempts to create a page from an address range.
             ///
-            /// This function validates that the range length is exactly equal to the
+            /// This function validates that the range length is multiple of the
             /// specified page size and that the starting address is properly aligned.
             ///
             /// # Parameters
