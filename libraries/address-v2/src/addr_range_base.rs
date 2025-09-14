@@ -18,9 +18,6 @@ macro_rules! impl_range {
         impl $range_type {
             /// Creates a new range from start and end addresses.
             ///
-            /// # Panics
-            /// Panics if start > end.
-            ///
             /// # Examples
             /// ```
             /// # use address_v2::{PhysAddr, PhysAddrRange};
@@ -289,8 +286,13 @@ macro_rules! impl_range {
                 }
             }
 
+            /// Creates a new iterator without checking the range validity.
+            ///
+            /// # Safety
+            ///
+            /// The caller must ensure that the range is valid and the step is non-zero and divides the range length.
             #[inline]
-            pub const fn new_unchecked(range: $range_type, step: usize) -> Self {
+            pub const unsafe fn new_unchecked(range: $range_type, step: usize) -> Self {
                 Self {
                     current: range.start,
                     end: range.end,
@@ -491,7 +493,7 @@ macro_rules! impl_range {
 
                 assert!(range.iter_step(0x2000).is_none()); // length not multiple of step
 
-                let iter = RangeIterator::new_unchecked(range, 0x2000);
+                let iter = unsafe { RangeIterator::new_unchecked(range, 0x2000) };
                 assert_eq!(iter.len(), 0); // only one step fits
             }
 

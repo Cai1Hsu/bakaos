@@ -40,7 +40,7 @@ mod virt_range_tests {
         // 1GB pages
         assert!(range.iter_pages_sized(0x40000000).is_none()); // smaller than 1GB, and length not multiple of 1GB
 
-        let pages_1g: Vec<_> = RangeIterator::new_unchecked(range, 0x40000000).collect();
+        let pages_1g: Vec<_> = unsafe { RangeIterator::new_unchecked(range, 0x40000000).collect() };
         assert_eq!(pages_1g.len(), 0); // Range is smaller than 1GB
     }
 
