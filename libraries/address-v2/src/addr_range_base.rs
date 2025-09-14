@@ -304,13 +304,14 @@ macro_rules! impl_range {
             type Item = $addr_type;
 
             fn next(&mut self) -> Option<Self::Item> {
-                let current_end: usize = *self.current + self.step;
+                let new_current = *self.current + self.step;
 
-                if current_end > self.end.into() {
+                // Ensure this range doen't overflow and stays within bounds
+                if new_current > *self.end {
                     None
                 } else {
                     let result = self.current;
-                    self.current = current_end.into();
+                    self.current = $addr_type::new(new_current);
                     Some(result)
                 }
             }
