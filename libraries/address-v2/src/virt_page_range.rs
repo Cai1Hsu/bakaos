@@ -1,4 +1,7 @@
-use crate::{VirtAddr, VirtAddrRange, VirtPage};
+use crate::{VirtAddrRange, VirtPage};
+
+#[cfg(test)]
+use crate::VirtAddr;
 
 impl_page_range!(VirtPageRange, VirtPage, VirtAddr, VirtAddrRange,
     /// Represents a range of virtual memory pages.

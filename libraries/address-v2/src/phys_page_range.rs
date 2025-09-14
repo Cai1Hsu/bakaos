@@ -1,4 +1,7 @@
-use crate::{PhysAddr, PhysAddrRange, PhysPage};
+use crate::{PhysAddrRange, PhysPage};
+
+#[cfg(test)]
+use crate::PhysAddr;
 
 impl_page_range!(PhysPageRange, PhysPage, PhysAddr, PhysAddrRange,
     /// Represents a range of physical memory pages.

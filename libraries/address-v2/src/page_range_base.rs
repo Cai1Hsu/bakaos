@@ -1,10 +1,17 @@
 macro_rules! impl_page_range {
     ($page_range_type:ident, $page_type:ident, $addr_type:ty, $range_type:ty, $(#[$doc:meta])*) => {
         $(#[$doc])*
-        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        #[derive(Debug, Clone, Copy, Eq)]
         pub struct $page_range_type {
             start: $page_type,
             page_count: usize
+        }
+
+        impl const ::core::cmp::PartialEq for $page_range_type {
+            #[inline(always)]
+            fn eq(&self, other: &Self) -> bool {
+                self.start == other.start && self.page_count == other.page_count
+            }
         }
 
         impl $page_range_type {
@@ -200,12 +207,12 @@ macro_rules! impl_page_range {
             /// let range = PhysPageRange::new(start_page, 3);
             ///
             /// let contained_page = PhysPage::new_4k(PhysAddr::new(0x2000)).unwrap();
-            /// assert!(range.contains(contained_page));
+            /// assert!(range.contains_page(contained_page));
             ///
             /// let outside_page = PhysPage::new_4k(PhysAddr::new(0x4000)).unwrap();
-            /// assert!(!range.contains(outside_page));
+            /// assert!(!range.contains_page(outside_page));
             /// ```
-            pub fn contains(&self, page: $page_type) -> bool {
+            pub const fn contains_page(&self, page: $page_type) -> bool {
                 // Pages must have the same size to be comparable
                 debug_assert!(self.start.size() == page.size());
 
@@ -235,10 +242,10 @@ macro_rules! impl_page_range {
             /// let start2 = PhysPage::new_4k(PhysAddr::new(0x2000)).unwrap();
             /// let range2 = PhysPageRange::new(start2, 2); // 0x2000..0x4000
             ///
-            /// assert!(range1.contains_range(range2));
-            /// assert!(!range2.contains_range(range1));
+            /// assert!(range1.contains(range2));
+            /// assert!(!range2.contains(range1));
             /// ```
-            pub fn contains_range(&self, other: Self) -> bool {
+            pub const fn contains(&self, other: Self) -> bool {
                 // Ranges must have compatible page sizes
                 debug_assert!(self.start.size() == other.start.size());
 
@@ -248,29 +255,6 @@ macro_rules! impl_page_range {
                 let other_end = *other.end().addr();
 
                 self_start <= other_start && other_end <= self_end
-            }
-
-            /// Checks if this range is completely contained by another range.
-            ///
-            /// # Parameters
-            /// - `other`: The range that might contain this range
-            ///
-            /// # Returns
-            /// `true` if this range is completely contained within `other`, `false` otherwise
-            ///
-            /// # Examples
-            /// ```rust
-            /// # use address_v2::{PhysPage, PhysPageRange, PhysAddr};
-            /// let start1 = PhysPage::new_4k(PhysAddr::new(0x1000)).unwrap();
-            /// let small_range = PhysPageRange::new(start1, 2);
-            ///
-            /// let start2 = PhysPage::new_4k(PhysAddr::new(0x1000)).unwrap();
-            /// let large_range = PhysPageRange::new(start2, 4);
-            ///
-            /// assert!(small_range.contained_by(large_range));
-            /// ```
-            pub fn contained_by(&self, other: Self) -> bool {
-                other.contains_range(*self)
             }
 
             /// Checks if this range intersects with another range.
@@ -295,7 +279,7 @@ macro_rules! impl_page_range {
             ///
             /// assert!(range1.intersects(range2));
             /// ```
-            pub fn intersects(&self, other: Self) -> bool {
+            pub const fn intersects(&self, other: Self) -> bool {
                 // Ranges must have compatible page sizes
                 debug_assert!(self.start.size() == other.start.size());
 
@@ -317,7 +301,7 @@ macro_rules! impl_page_range {
             ///
             /// # Returns
             /// - `Some(range)` containing the overlapping pages if ranges intersect
-            /// - `None` if ranges don't intersect or have incompatible page sizes
+            /// - `None` if ranges don't intersect
             ///
             /// # Examples
             /// ```rust
@@ -332,127 +316,105 @@ macro_rules! impl_page_range {
             /// assert_eq!(intersection.start().addr(), PhysAddr::new(0x2000));
             /// assert_eq!(intersection.end().addr(), PhysAddr::new(0x4000));
             /// ```
-            pub fn intersection(&self, other: Self) -> Option<Self> {
+            pub const fn intersection(&self, other: Self) -> Option<Self> {
                 if !self.intersects(other) {
                     return None;
                 }
 
-                let self_start = *self.start().addr();
-                let self_end = *self.end().addr();
-                let other_start = *other.start().addr();
-                let other_end = *other.end().addr();
+                // let self_start = ;
+                // let self_end = *self.end().addr();
+                // let other_start = *other.start().addr();
+                // let other_end = *other.end().addr();
 
-                let start_addr = core::cmp::max(self_start, other_start);
-                let end_addr = core::cmp::min(self_end, other_end);
+                let start = if *self.start().addr() > *other.start().addr() {
+                    self.start()
+                } else {
+                    other.start()
+                };
 
-                // Create new pages from the intersection addresses
-                let start_page = $page_type::new_custom_unchecked(
-                    <$addr_type>::new(start_addr),
-                    self.start.size()
-                );
-                let end_page = $page_type::new_custom_unchecked(
-                    <$addr_type>::new(end_addr),
-                    self.start.size()
-                );
+                let end = if *self.end().addr() < *other.end().addr() {
+                    self.end()
+                } else {
+                    other.end()
+                };
 
-                Self::from_start_end(start_page, end_page)
+                // Since we've guaranteed the ranges are intersecting and have the same page size,
+                // the unwrap is safe here.
+                Some(Self::from_start_end(start, end).unwrap())
             }
 
-            /// Calculates the union of this range with another range.
-            ///
-            /// Creates the smallest range that contains both input ranges.
-            ///
-            /// # Parameters
-            /// - `other`: The range to union with
-            ///
-            /// # Returns
-            /// - `Some(range)` containing the smallest range that encompasses both inputs
-            /// - `None` if the page sizes are incompatible
+            /// Checks if this range is directly adjacent to another range.
+            /// Two ranges are adjacent if the end of one is exactly the start of the other.
             ///
             /// # Examples
-            /// ```rust
+            /// ```
             /// # use address_v2::{PhysPage, PhysPageRange, PhysAddr};
             /// let start1 = PhysPage::new_4k(PhysAddr::new(0x1000)).unwrap();
-            /// let range1 = PhysPageRange::new(start1, 2); // 0x1000..0x3000
+            /// let range1 = PhysPageRange::new(start1, 1); // 0x1000..0x2000
             ///
-            /// let start2 = PhysPage::new_4k(PhysAddr::new(0x4000)).unwrap();
-            /// let range2 = PhysPageRange::new(start2, 2); // 0x4000..0x6000
+            /// let start2 = PhysPage::new_4k(PhysAddr::new(0x2000)).unwrap();
+            /// let range2 = PhysPageRange::new(start2, 3); // 0x2000..0x5000
             ///
-            /// let union = range1.union(range2).unwrap();
-            /// assert_eq!(union.start().addr(), PhysAddr::new(0x1000));
-            /// assert_eq!(union.end().addr(), PhysAddr::new(0x6000));
+            /// assert!(range1.is_adjacent(range2));
             /// ```
-            pub fn union(&self, other: Self) -> Option<Self> {
-                // Ranges must have compatible page sizes
+            #[inline(always)]
+            pub const fn is_adjacent(self, other: Self) -> bool {
                 debug_assert!(self.start.size() == other.start.size());
 
-
-                let self_start = *self.start().addr();
-                let self_end = *self.end().addr();
-                let other_start = *other.start().addr();
-                let other_end = *other.end().addr();
-
-                let start_addr = core::cmp::min(self_start, other_start);
-                let end_addr = core::cmp::max(self_end, other_end);
-
-                // Create new pages from the union addresses
-                let start_page = $page_type::new_custom_unchecked(
-                    <$addr_type>::new(start_addr),
-                    self.start.size()
-                );
-                let end_page = $page_type::new_custom_unchecked(
-                    <$addr_type>::new(end_addr),
-                    self.start.size()
-                );
-
-                Self::from_start_end(start_page, end_page)
+                self.end().addr() == other.start().addr() || other.end().addr() == self.start().addr()
             }
 
-            /// Offsets this range by a signed amount in bytes.
-            ///
-            /// Shifts the entire range by the specified byte offset. The range maintains
-            /// its size but starts at a new address.
+            /// Checks if this range can be merged with another range.
+            /// Ranges can be merged if they overlap or are adjacent.
+            #[inline(always)]
+            pub const fn can_merge(self, other: Self) -> bool {
+                self.intersects(other) || self.is_adjacent(other)
+            }
+
+            /// Merges this range with another range if they overlap or are adjacent.
             ///
             /// # Parameters
-            /// - `offset`: The byte offset to apply (can be positive or negative)
+            /// - `other`: The range to merge with
             ///
             /// # Returns
-            /// - `Some(range)` with the new offset if the result is valid
-            /// - `None` if the offset would cause address underflow
+            /// - `Some(range)` containing the merged pages if ranges can be merged
+            /// - `None` if ranges cannot be merged
             ///
             /// # Examples
-            /// ```rust
-            /// # use address_v2::{PhysPage, PhysPageRange, PhysAddr};
-            /// let start_page = PhysPage::new_4k(PhysAddr::new(0x2000)).unwrap();
-            /// let range = PhysPageRange::new(start_page, 2);
-            ///
-            /// // Positive offset
-            /// let shifted_up = range.off_by(0x1000).unwrap();
-            /// assert_eq!(shifted_up.start().addr(), PhysAddr::new(0x3000));
-            ///
-            /// // Negative offset
-            /// let shifted_down = range.off_by(-0x1000isize).unwrap();
-            /// assert_eq!(shifted_down.start().addr(), PhysAddr::new(0x1000));
-            ///
-            /// // Underflow returns None
-            /// let underflow = range.off_by(-0x3000isize);
-            /// assert!(underflow.is_none());
             /// ```
-            pub fn off_by(&self, offset: isize) -> Option<Self> {
-                // Calculate the new start address
-                let new_start_addr = *self.start().addr() as isize + offset;
-
-                // Check for underflow
-                if new_start_addr < 0 {
+            /// # use address_v2::{PhysPage, PhysPageRange, PhysAddr};
+            ///
+            /// let start1 = PhysPage::new_4k(PhysAddr::new(0x1000)).unwrap();
+            /// let range1 = PhysPageRange::new(start1, 3); // 0x1000..0x4000
+            ///
+            /// let start2 = PhysPage::new_4k(PhysAddr::new(0x2000)).unwrap();
+            /// let range2 = PhysPageRange::new(start2, 3); // 0x2000..0x5000
+            ///
+            /// let merged = range1.merge(range2).unwrap();
+            /// assert_eq!(merged.start().addr(), PhysAddr::new(0x1000));
+            /// assert_eq!(merged.end().addr(), PhysAddr::new(0x5000));
+            /// ```
+            #[inline(always)]
+            pub const fn merge(self, other: Self) -> Option<Self> {
+                if !self.can_merge(other) {
                     return None;
                 }
 
-                let new_start_page = $page_type::new_custom_unchecked(
-                    <$addr_type>::new(new_start_addr as usize),
-                    self.start.size()
-                );
+                let start = if *self.start().addr() < *other.start().addr() {
+                    self.start()
+                } else {
+                    other.start()
+                };
 
-                Some(Self::new(new_start_page, self.page_count))
+                let end = if *self.end().addr() > *other.end().addr() {
+                    self.end()
+                } else {
+                    other.end()
+                };
+
+                // The unwrap is intentional here since we have already validated the pages
+                // to ensure they are aligned and have the same size.
+                Some(Self::from_start_end(start, end).unwrap())
             }
         }
 
@@ -635,52 +597,40 @@ macro_rules! impl_page_range {
 
                 // Page within range
                 let contained_page = $page_type::new_4k(<$addr_type>::new(0x2000)).unwrap();
-                assert!(range.contains(contained_page));
+                assert!(range.contains_page(contained_page));
 
                 // Page at start boundary
                 let start_boundary = $page_type::new_4k(<$addr_type>::new(0x1000)).unwrap();
-                assert!(range.contains(start_boundary));
+                assert!(range.contains_page(start_boundary));
 
                 // Page at end boundary (exclusive)
                 let end_boundary = $page_type::new_4k(<$addr_type>::new(0x4000)).unwrap();
-                assert!(!range.contains(end_boundary));
+                assert!(!range.contains_page(end_boundary));
 
                 // Page outside range
                 let outside_page = $page_type::new_4k(<$addr_type>::new(0x5000)).unwrap();
-                assert!(!range.contains(outside_page));
+                assert!(!range.contains_page(outside_page));
             }
 
             #[test]
-            fn test_page_range_contains_range() {
+            fn test_page_range_contains() {
                 let start1 = $page_type::new_4k(<$addr_type>::new(0x1000)).unwrap();
                 let large_range = $page_range_type::new(start1, 6); // 0x1000..0x7000
 
                 let start2 = $page_type::new_4k(<$addr_type>::new(0x2000)).unwrap();
                 let small_range = $page_range_type::new(start2, 2); // 0x2000..0x4000
 
-                assert!(large_range.contains_range(small_range));
-                assert!(!small_range.contains_range(large_range));
+                assert!(large_range.contains(small_range));
+                assert!(!small_range.contains(large_range));
 
                 // Same range contains itself
-                assert!(large_range.contains_range(large_range));
+                assert!(large_range.contains(large_range));
 
                 // Partially overlapping ranges
                 let start3 = $page_type::new_4k(<$addr_type>::new(0x6000)).unwrap();
                 let overlap_range = $page_range_type::new(start3, 3); // 0x6000..0x9000
-                assert!(!large_range.contains_range(overlap_range));
-                assert!(!overlap_range.contains_range(large_range));
-            }
-
-            #[test]
-            fn test_page_range_contained_by() {
-                let start1 = $page_type::new_4k(<$addr_type>::new(0x1000)).unwrap();
-                let small_range = $page_range_type::new(start1, 2);
-
-                let start2 = $page_type::new_4k(<$addr_type>::new(0x1000)).unwrap();
-                let large_range = $page_range_type::new(start2, 4);
-
-                assert!(small_range.contained_by(large_range));
-                assert!(!large_range.contained_by(small_range));
+                assert!(!large_range.contains(overlap_range));
+                assert!(!overlap_range.contains(large_range));
             }
 
             #[test]
@@ -730,61 +680,37 @@ macro_rules! impl_page_range {
             }
 
             #[test]
-            fn test_page_range_union() {
+            fn test_page_range_merge() {
+                // Try merge non-adjacent ranges (should fail)
                 let start1 = $page_type::new_4k(<$addr_type>::new(0x1000)).unwrap();
                 let range1 = $page_range_type::new(start1, 2); // 0x1000..0x3000
 
                 let start2 = $page_type::new_4k(<$addr_type>::new(0x4000)).unwrap();
                 let range2 = $page_range_type::new(start2, 2); // 0x4000..0x6000
 
-                let union = range1.union(range2);
-                assert!(union.is_some());
+                let merged = range1.merge(range2);
+                assert!(merged.is_none());
 
-                let union = union.unwrap();
-                assert_eq!(*union.start().addr(), 0x1000);
-                assert_eq!(*union.end().addr(), 0x6000);
-                assert_eq!(union.len(), 5); // spans 0x1000..0x6000 = 5 pages
+                // Merge with adjacent ranges
+                let range1 = $page_range_type::new(start1, 3); // 0x1000..0x4000
+                let merged = range1.merge(range2);
+                assert!(merged.is_some());
 
-                // Union with overlapping ranges
+                let merged = merged.unwrap();
+                assert_eq!(*merged.start().addr(), 0x1000);
+                assert_eq!(*merged.end().addr(), 0x6000);
+                assert_eq!(merged.len(), 5); // spans 0x1000..0x6000 = 5 pages
+
+                // Merge with overlapping ranges
                 let start3 = $page_type::new_4k(<$addr_type>::new(0x2000)).unwrap();
                 let range3 = $page_range_type::new(start3, 3); // 0x2000..0x5000
 
-                let overlapping_union = range1.union(range3);
+                let overlapping_union = range1.merge(range3);
                 assert!(overlapping_union.is_some());
 
                 let overlapping_union = overlapping_union.unwrap();
                 assert_eq!(*overlapping_union.start().addr(), 0x1000);
                 assert_eq!(*overlapping_union.end().addr(), 0x5000);
-            }
-
-            #[test]
-            fn test_page_range_off_by() {
-                let start_page = $page_type::new_4k(<$addr_type>::new(0x2000)).unwrap();
-                let range = $page_range_type::new(start_page, 2);
-
-                // Positive offset
-                let shifted_up = range.off_by(0x1000);
-                assert!(shifted_up.is_some());
-                let shifted_up = shifted_up.unwrap();
-                assert_eq!(*shifted_up.start().addr(), 0x3000);
-                assert_eq!(shifted_up.len(), 2);
-
-                // Negative offset
-                let shifted_down = range.off_by(-0x1000);
-                assert!(shifted_down.is_some());
-                let shifted_down = shifted_down.unwrap();
-                assert_eq!(*shifted_down.start().addr(), 0x1000);
-                assert_eq!(shifted_down.len(), 2);
-
-                // Zero offset
-                let no_shift = range.off_by(0);
-                assert!(no_shift.is_some());
-                let no_shift = no_shift.unwrap();
-                assert_eq!(no_shift.start(), range.start());
-
-                // Underflow
-                let underflow = range.off_by(-0x3000);
-                assert!(underflow.is_none());
             }
 
             #[test]
@@ -840,7 +766,7 @@ macro_rules! impl_page_range {
                 assert_eq!(range.addr_len(), 0x1000);
                 assert!(!range.is_empty());
 
-                assert!(range.contains(page));
+                assert!(range.contains_page(page));
                 assert_eq!(range.start(), page);
                 assert_eq!(*range.end().addr(), 0x2000);
 
