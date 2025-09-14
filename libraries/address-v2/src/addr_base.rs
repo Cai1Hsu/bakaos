@@ -33,6 +33,8 @@ macro_rules! impl_addr {
             /// ```
             #[inline(always)]
             pub const fn align_down(self, align: usize) -> Self {
+                debug_assert!(align != 0);
+
                 // Usually the given align is a constant value
                 // By inlining this function, the compiler selects the optimal code path
                 // Same for other alignment related functions
@@ -55,6 +57,8 @@ macro_rules! impl_addr {
             /// ```
             #[inline(always)]
             pub const fn align_up(self, align: usize) -> Self {
+                debug_assert!(align != 0);
+
                 if align.is_power_of_two() {
                     Self((self.0 + align - 1) & !(align - 1))
                 } else {
@@ -73,6 +77,8 @@ macro_rules! impl_addr {
             /// ```
             #[inline(always)]
             pub const fn is_aligned(self, align: usize) -> bool {
+                debug_assert!(align != 0);
+
                 if align.is_power_of_two() {
                     (self.0 & (align - 1)) == 0
                 } else {
@@ -90,6 +96,8 @@ macro_rules! impl_addr {
             /// ```
             #[inline(always)]
             pub const fn offset_from_alignment(self, align: usize) -> usize {
+                debug_assert!(align != 0);
+
                 if align.is_power_of_two() {
                     self.0 & (align - 1)
                 } else {
