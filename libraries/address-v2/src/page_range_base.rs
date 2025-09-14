@@ -321,11 +321,6 @@ macro_rules! impl_page_range {
                     return None;
                 }
 
-                // let self_start = ;
-                // let self_end = *self.end().addr();
-                // let other_start = *other.start().addr();
-                // let other_end = *other.end().addr();
-
                 let start = if *self.start().addr() > *other.start().addr() {
                     self.start()
                 } else {
@@ -672,6 +667,9 @@ macro_rules! impl_page_range {
                 assert_eq!(*intersection.end().addr(), 0x5000);
                 assert_eq!(intersection.len(), 2);
 
+                let reverse_intersection = range2.intersection(range1);
+                assert_eq!(reverse_intersection, Some(intersection));
+
                 // Non-intersecting ranges
                 let start3 = $page_type::new_4k(<$addr_type>::new(0x6000)).unwrap();
                 let range3 = $page_range_type::new(start3, 2);
@@ -711,6 +709,9 @@ macro_rules! impl_page_range {
                 let overlapping_union = overlapping_union.unwrap();
                 assert_eq!(*overlapping_union.start().addr(), 0x1000);
                 assert_eq!(*overlapping_union.end().addr(), 0x5000);
+
+                let overlapping_union2 = range3.merge(range1);
+                assert_eq!(overlapping_union2, Some(overlapping_union));
             }
 
             #[test]

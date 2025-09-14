@@ -356,6 +356,18 @@ macro_rules! impl_range {
             }
 
             #[test]
+            fn test_equality() {
+                const RANGE1: $range_type = $range_type::new($addr_type::new(0x1000), $addr_type::new(0x2000));
+                const RANGE2: $range_type = $range_type::new($addr_type::new(0x1000), $addr_type::new(0x2000));
+                const RANGE3: $range_type = $range_type::new($addr_type::new(0x1000), $addr_type::new(0x3000));
+                const RANGE4: $range_type = $range_type::new($addr_type::new(0x0000), $addr_type::new(0x2000));
+
+                assert_eq!(RANGE1, RANGE2);
+                assert_ne!(RANGE1, RANGE3);
+                assert_ne!(RANGE1, RANGE4);
+            }
+
+            #[test]
             fn test_range_from_start_len() {
                 let start = $addr_type::new(0x1000);
                 let range = $range_type::from_start_len(start, 0x1000);
