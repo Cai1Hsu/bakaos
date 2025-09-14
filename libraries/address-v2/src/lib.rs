@@ -11,22 +11,24 @@
 #[macro_use]
 pub(crate) mod addr_base;
 #[macro_use]
-pub(crate) mod range_base;
+pub(crate) mod addr_range_base;
 
-mod paddr_range;
 mod phys_addr;
-mod vaddr_range;
-mod virt_addr;
+mod phys_addr_range;
 
-pub use paddr_range::PaddrRange;
+mod virt_addr;
+mod virt_addr_range;
+
 pub use phys_addr::PhysAddr;
-pub use vaddr_range::VaddrRange;
+pub use phys_addr_range::PhysAddrRange;
+
 pub use virt_addr::VirtAddr;
+pub use virt_addr_range::VirtAddrRange;
 
 pub mod virt {
-    pub use super::vaddr_range::RangeIterator;
+    pub use super::virt_addr_range::RangeIterator as AddrRageIterator;
 }
 
 pub mod phys {
-    pub use super::paddr_range::RangeIterator;
+    pub use super::phys_addr_range::RangeIterator as AddrRageIterator;
 }

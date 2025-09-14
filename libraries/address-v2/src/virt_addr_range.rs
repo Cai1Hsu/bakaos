@@ -1,6 +1,6 @@
 use crate::VirtAddr;
 
-impl_range!(VaddrRange, VirtAddr,
+impl_range!(VirtAddrRange, VirtAddr,
     /// Represents a range of virtual addresses.
     ///
     /// A virtual address range is defined by a start and end address,
@@ -17,7 +17,7 @@ mod virt_range_tests {
     fn test_virt_range_creation() {
         let start = VirtAddr::new(0x400000);
         let end = VirtAddr::new(0x500000);
-        let range = VaddrRange::new(start, end);
+        let range = VirtAddrRange::new(start, end);
 
         assert_eq!(range.start(), start);
         assert_eq!(range.end(), end);
@@ -27,7 +27,7 @@ mod virt_range_tests {
     #[test]
     fn test_virt_range_page_table_operations() {
         // Test with different page sizes common in virtual memory
-        let range = VaddrRange::new(VirtAddr::new(0x400000), VirtAddr::new(0x800000));
+        let range = VirtAddrRange::new(VirtAddr::new(0x400000), VirtAddr::new(0x800000));
 
         // 4KB pages
         let pages_4k: Vec<_> = range.iter_pages().unwrap().collect();
@@ -53,7 +53,7 @@ mod virt_range_tests {
 
         let start_addr = VirtAddr::from(ptr_start);
         let end_addr = VirtAddr::from(ptr_end);
-        let range = VaddrRange::new(start_addr, end_addr);
+        let range = VirtAddrRange::new(start_addr, end_addr);
 
         assert_eq!(range.len(), data.len() * core::mem::size_of::<u32>());
     }
@@ -61,7 +61,7 @@ mod virt_range_tests {
     #[test]
     fn test_virt_range_alignment_for_pages() {
         // Test alignment operations common in virtual memory management
-        let unaligned_range = VaddrRange::new(VirtAddr::new(0x401234), VirtAddr::new(0x405678));
+        let unaligned_range = VirtAddrRange::new(VirtAddr::new(0x401234), VirtAddr::new(0x405678));
 
         // Align to 4KB pages
         let page_aligned = unaligned_range.align_to(0x1000);
@@ -81,9 +81,9 @@ mod virt_range_tests {
     #[test]
     fn test_virt_range_intersection_for_protection() {
         // Test scenarios common in memory protection
-        let executable_range = VaddrRange::new(VirtAddr::new(0x400000), VirtAddr::new(0x500000));
+        let executable_range = VirtAddrRange::new(VirtAddr::new(0x400000), VirtAddr::new(0x500000));
 
-        let writable_range = VaddrRange::new(VirtAddr::new(0x450000), VirtAddr::new(0x550000));
+        let writable_range = VirtAddrRange::new(VirtAddr::new(0x450000), VirtAddr::new(0x550000));
 
         // Find overlapping region (would need special protection)
         let overlap = executable_range.intersection(writable_range).unwrap();
@@ -97,9 +97,9 @@ mod virt_range_tests {
     #[test]
     fn test_virt_range_merge_adjacent_mappings() {
         // Test merging adjacent virtual memory mappings
-        let mapping1 = VaddrRange::new(VirtAddr::new(0x600000), VirtAddr::new(0x700000));
-        let mapping2 = VaddrRange::new(VirtAddr::new(0x700000), VirtAddr::new(0x800000));
-        let mapping3 = VaddrRange::new(VirtAddr::new(0x900000), VirtAddr::new(0xA00000));
+        let mapping1 = VirtAddrRange::new(VirtAddr::new(0x600000), VirtAddr::new(0x700000));
+        let mapping2 = VirtAddrRange::new(VirtAddr::new(0x700000), VirtAddr::new(0x800000));
+        let mapping3 = VirtAddrRange::new(VirtAddr::new(0x900000), VirtAddr::new(0xA00000));
 
         // Adjacent mappings can be merged
         let merged = mapping1.merge(mapping2).unwrap();
@@ -112,7 +112,7 @@ mod virt_range_tests {
 
     #[test]
     fn test_virt_range_contains_specific_addresses() {
-        let stack_range = VaddrRange::new(
+        let stack_range = VirtAddrRange::new(
             VirtAddr::new(0x7FFE_0000_0000),
             VirtAddr::new(0x7FFF_0000_0000),
         );
