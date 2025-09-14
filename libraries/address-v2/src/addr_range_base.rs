@@ -103,6 +103,15 @@ macro_rules! impl_range {
                 *addr >= *self.start && *addr < *self.end
             }
 
+            /// Checks if this range fully contains another range.
+            ///
+            /// # Examples
+            /// ```
+            /// # use address_v2::{PhysAddr, PhysAddrRange};
+            /// let outer = PhysAddrRange::new(PhysAddr::new(0x1000), PhysAddr::new(0x3000));
+            /// let inner = PhysAddrRange::new(PhysAddr::new(0x1500), PhysAddr::new(0x2500));
+            /// assert!(outer.contains(inner));
+            /// ```
             #[inline(always)]
             pub const fn contains(&self, range: $range_type) -> bool {
                 *range.start >= *self.start && *range.end <= *self.end
