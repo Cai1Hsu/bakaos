@@ -1,28 +1,38 @@
-use core::{ops::Deref, ptr::NonNull};
+use core::ops::Deref;
 
 impl_addr!(VirtAddr,
     /// Represents a virtual address.
 );
 
 impl VirtAddr {
+    /// Returns the address as a raw pointer of type `*const T`.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that the address is valid for reads of type `T`.
+    /// Dereferencing the returned pointer is unsafe and may lead to undefined behavior
+    /// if the address is not valid.
+    ///
+    /// A valid address not only requires to be non-null, but also must point to
+    /// a properly mapped memory region in the **current** address space.
     #[inline(always)]
-    pub fn as_ptr<T>(self) -> *const T {
+    pub unsafe fn as_ptr<T>(self) -> *const T {
         self.0 as *const T
     }
 
+    /// Returns the address as a raw pointer of type `*mut T`.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that the address is valid for writes of type `T`.
+    /// Dereferencing the returned pointer is unsafe and may lead to undefined behavior
+    /// if the address is not valid.
+    ///
+    /// A valid address not only requires to be non-null, but also must point to
+    /// a properly mapped memory region in the **current** address space.
     #[inline(always)]
-    pub fn as_mut_ptr<T>(self) -> *mut T {
+    pub unsafe fn as_mut_ptr<T>(self) -> *mut T {
         self.0 as *mut T
-    }
-}
-
-impl<T> TryInto<NonNull<T>> for VirtAddr {
-    type Error = ();
-
-    #[inline(always)]
-    fn try_into(self) -> Result<NonNull<T>, Self::Error> {
-        let ptr = self.as_mut_ptr::<T>();
-        NonNull::new(ptr).ok_or(())
     }
 }
 
@@ -230,22 +240,12 @@ mod virt_addr_tests {
     fn test_test_virt_addr_as_ptr() {
         test_virt_addr_as_ptr_scene(42 as *const i32, || {
             let addr = VirtAddr::new(42);
-            addr.as_ptr()
+            unsafe { addr.as_ptr() }
         });
 
         test_virt_addr_as_ptr_scene(std::ptr::null_mut::<i32>(), || {
             let null_addr = VirtAddr::null;
-            null_addr.as_mut_ptr()
-        });
-
-        test_virt_addr_as_ptr_scene(NonNull::new(42 as *mut i32), || {
-            let addr = VirtAddr::new(42);
-            addr.try_into().ok()
-        });
-
-        test_virt_addr_as_ptr_scene(None as Option<NonNull<i32>>, || {
-            let null_addr = VirtAddr::null;
-            null_addr.try_into().ok()
+            unsafe { null_addr.as_mut_ptr() }
         });
     }
 
