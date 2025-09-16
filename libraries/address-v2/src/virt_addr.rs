@@ -43,6 +43,13 @@ impl<T: ?Sized> From<*const T> for VirtAddr<'static> {
     }
 }
 
+impl<T: ?Sized> From<*mut T> for VirtAddr<'static> {
+    #[inline(always)]
+    fn from(ptr: *mut T) -> Self {
+        VirtAddr::new(ptr as *mut () as usize)
+    }
+}
+
 impl<'a, T: ?Sized> From<&'a T> for VirtAddr<'a>
 where
     T: Deref,
