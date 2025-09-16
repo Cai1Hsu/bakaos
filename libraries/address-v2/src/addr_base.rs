@@ -30,7 +30,7 @@ macro_rules! impl_addr {
             }
         }
 
-        impl $type<'_> {
+        impl $type<'static> {
             /// Aligns the address down to the given alignment.
             ///
             /// # Examples
@@ -98,7 +98,9 @@ macro_rules! impl_addr {
                     (*self).is_multiple_of(align)
                 }
             }
+        }
 
+        impl $type<'_> {
             /// Returns the offset from the given alignment.
             ///
             /// # Examples
@@ -182,7 +184,7 @@ macro_rules! impl_addr {
             }
         }
 
-        impl const ::core::ops::Add<usize> for $type<'_> {
+        impl const ::core::ops::Add<usize> for $type<'static> {
             type Output = Self;
 
             #[inline(always)]
@@ -192,7 +194,7 @@ macro_rules! impl_addr {
             }
         }
 
-        impl const ::core::ops::Add<isize> for $type<'_> {
+        impl const ::core::ops::Add<isize> for $type<'static> {
             type Output = Self;
 
             #[inline(always)]
@@ -202,7 +204,7 @@ macro_rules! impl_addr {
             }
         }
 
-        impl const ::core::ops::Sub<usize> for $type<'_> {
+        impl const ::core::ops::Sub<usize> for $type<'static> {
             type Output = Self;
 
             #[inline(always)]
@@ -212,7 +214,7 @@ macro_rules! impl_addr {
             }
         }
 
-        impl const ::core::ops::Sub<isize> for $type<'_> {
+        impl const ::core::ops::Sub<isize> for $type<'static> {
             type Output = Self;
 
             #[inline(always)]
@@ -222,7 +224,7 @@ macro_rules! impl_addr {
             }
         }
 
-        impl const ::core::ops::Add<$type<'_>> for $type<'_> {
+        impl const ::core::ops::Add<$type<'static>> for $type<'static> {
             type Output = Self;
 
             #[inline(always)]
@@ -232,7 +234,7 @@ macro_rules! impl_addr {
             }
         }
 
-        impl const ::core::ops::Sub<$type<'_>> for $type<'_> {
+        impl const ::core::ops::Sub<$type<'static>> for $type<'static> {
             type Output = isize;
 
             #[inline(always)]
@@ -241,28 +243,28 @@ macro_rules! impl_addr {
             }
         }
 
-        impl ::core::ops::AddAssign<usize> for $type<'_> {
+        impl ::core::ops::AddAssign<usize> for $type<'static> {
             #[inline(always)]
             fn add_assign(&mut self, rhs: usize) {
                 **self += rhs;
             }
         }
 
-        impl ::core::ops::AddAssign<isize> for $type<'_> {
+        impl ::core::ops::AddAssign<isize> for $type<'static> {
             #[inline(always)]
             fn add_assign(&mut self, rhs: isize) {
                 **self = (**self as isize + rhs) as usize;
             }
         }
 
-        impl ::core::ops::SubAssign<usize> for $type<'_> {
+        impl ::core::ops::SubAssign<usize> for $type<'static> {
             #[inline(always)]
             fn sub_assign(&mut self, rhs: usize) {
                 **self -= rhs;
             }
         }
 
-        impl ::core::ops::SubAssign<isize> for $type<'_> {
+        impl ::core::ops::SubAssign<isize> for $type<'static> {
             #[inline(always)]
             fn sub_assign(&mut self, rhs: isize) {
                 **self = (**self as isize - rhs) as usize;
@@ -270,7 +272,7 @@ macro_rules! impl_addr {
         }
 
         // Bitwise operations
-        impl ::core::ops::BitAnd<usize> for $type<'_> {
+        impl ::core::ops::BitAnd<usize> for $type<'static> {
             type Output = Self;
 
             #[inline(always)]
@@ -280,7 +282,7 @@ macro_rules! impl_addr {
             }
         }
 
-        impl ::core::ops::BitAnd<$type<'_>> for $type<'_> {
+        impl ::core::ops::BitAnd<$type<'static>> for $type<'static> {
             type Output = Self;
 
             #[inline(always)]
@@ -290,7 +292,7 @@ macro_rules! impl_addr {
             }
         }
 
-        impl ::core::ops::BitOr<usize> for $type<'_> {
+        impl ::core::ops::BitOr<usize> for $type<'static> {
             type Output = Self;
 
             #[inline(always)]
@@ -300,7 +302,7 @@ macro_rules! impl_addr {
             }
         }
 
-        impl ::core::ops::BitOr<$type<'_>> for $type<'_> {
+        impl ::core::ops::BitOr<$type<'static>> for $type<'static> {
             type Output = Self;
 
             #[inline(always)]
@@ -310,7 +312,7 @@ macro_rules! impl_addr {
             }
         }
 
-        impl ::core::ops::BitXor<usize> for $type<'_> {
+        impl ::core::ops::BitXor<usize> for $type<'static> {
             type Output = Self;
 
             #[inline(always)]
@@ -320,7 +322,7 @@ macro_rules! impl_addr {
             }
         }
 
-        impl ::core::ops::BitXor<$type<'_>> for $type<'_> {
+        impl ::core::ops::BitXor<$type<'static>> for $type<'static> {
             type Output = Self;
 
             #[inline(always)]
@@ -330,7 +332,7 @@ macro_rules! impl_addr {
             }
         }
 
-        impl ::core::ops::Not for $type<'_> {
+        impl ::core::ops::Not for $type<'static> {
             type Output = Self;
 
             #[inline(always)]
@@ -340,7 +342,7 @@ macro_rules! impl_addr {
             }
         }
 
-        impl ::core::ops::Shl<usize> for $type<'_> {
+        impl ::core::ops::Shl<usize> for $type<'static> {
             type Output = Self;
 
             #[inline(always)]
@@ -350,7 +352,7 @@ macro_rules! impl_addr {
             }
         }
 
-        impl ::core::ops::Shr<usize> for $type<'_> {
+        impl ::core::ops::Shr<usize> for $type<'static> {
             type Output = Self;
 
             #[inline(always)]
@@ -361,56 +363,56 @@ macro_rules! impl_addr {
         }
 
         // Bitwise assignment operations
-        impl ::core::ops::BitAndAssign<usize> for $type<'_> {
+        impl ::core::ops::BitAndAssign<usize> for $type<'static> {
             #[inline(always)]
             fn bitand_assign(&mut self, rhs: usize) {
                 **self &= rhs;
             }
         }
 
-        impl ::core::ops::BitAndAssign<$type<'_>> for $type<'_> {
+        impl ::core::ops::BitAndAssign<$type<'static>> for $type<'static> {
             #[inline(always)]
             fn bitand_assign(&mut self, rhs: $type) {
                 *self &= *rhs;
             }
         }
 
-        impl ::core::ops::BitOrAssign<usize> for $type<'_> {
+        impl ::core::ops::BitOrAssign<usize> for $type<'static> {
             #[inline(always)]
             fn bitor_assign(&mut self, rhs: usize) {
                 **self |= rhs;
             }
         }
 
-        impl ::core::ops::BitOrAssign<$type<'_>> for $type<'_> {
+        impl ::core::ops::BitOrAssign<$type<'static>> for $type<'static> {
             #[inline(always)]
             fn bitor_assign(&mut self, rhs: $type) {
                 *self |= *rhs;
             }
         }
 
-        impl ::core::ops::BitXorAssign<usize> for $type<'_> {
+        impl ::core::ops::BitXorAssign<usize> for $type<'static> {
             #[inline(always)]
             fn bitxor_assign(&mut self, rhs: usize) {
                 **self ^= rhs;
             }
         }
 
-        impl ::core::ops::BitXorAssign<$type<'_>> for $type<'_> {
+        impl ::core::ops::BitXorAssign<$type<'static>> for $type<'static> {
             #[inline(always)]
             fn bitxor_assign(&mut self, rhs: $type) {
                 *self ^= *rhs;
             }
         }
 
-        impl ::core::ops::ShlAssign<usize> for $type<'_> {
+        impl ::core::ops::ShlAssign<usize> for $type<'static> {
             #[inline(always)]
             fn shl_assign(&mut self, rhs: usize) {
                 **self <<= rhs;
             }
         }
 
-        impl ::core::ops::ShrAssign<usize> for $type<'_> {
+        impl ::core::ops::ShrAssign<usize> for $type<'static> {
             #[inline(always)]
             fn shr_assign(&mut self, rhs: usize) {
                 **self >>= rhs;
