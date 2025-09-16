@@ -62,6 +62,46 @@ impl<'a, T: ?Sized> From<&'a T> for VirtAddr<'a> {
     }
 }
 
+// There's no implementation for PhysAddr, as physical addresses are always static.
+impl<'a> VirtAddr<'a> {
+    /// Create a new address with the same lifetime as the given address.
+    ///
+    /// # Examples
+    /// ```
+    /// # use address_v2::VirtAddr;
+    /// let val: i32 = 42;
+    /// let vaddr1 = VirtAddr::from(&val); // local lifetime
+    /// let vaddr2 = vaddr1.same_lifetime(0x1234); // same local lifetime
+    ///
+    /// let vaddr3 = VirtAddr::null; // static lifetime
+    /// let vaddr4 = vaddr3.same_lifetime(0x5678); // static lifetime
+    /// ```
+    #[inline(always)]
+    pub const fn same_lifetime(&'a self, addr: usize) -> VirtAddr<'a> {
+        VirtAddr {
+            _0: addr,
+            _marker: self._marker,
+        }
+    }
+
+    /// Promotes the address to a static lifetime.
+    ///
+    /// # Examples
+    /// ```
+    /// # use address_v2::VirtAddr;
+    /// let val: i32 = 42;
+    /// let vaddr = VirtAddr::from(&val); // local lifetime
+    /// let static_vaddr = unsafe { vaddr.promote_to_static() }; // static lifetime
+    /// ```
+    /// # Safety
+    /// The lifetime is explicitly limited, so promoting it to `'static` is unsafe.
+    /// The caller must ensure that the address remains valid for the `'static` lifetime.
+    #[inline(always)]
+    pub const unsafe fn promote_to_static(self) -> VirtAddr<'static> {
+        VirtAddr::null.same_lifetime(*self)
+    }
+}
+
 #[cfg(test)]
 mod virt_addr_tests {
     use core::fmt::Debug;
@@ -347,5 +387,47 @@ mod virt_addr_tests {
         let addr: VirtAddr = boxed.as_ref().into();
 
         assert_eq!(*addr, boxed.deref().as_ptr() as usize);
+    }
+
+    #[test]
+    fn test_same_lifetime() {
+        fn foo<'a>(lhs: VirtAddr<'a>, rhs: VirtAddr<'a>) {
+            use core::hint::black_box;
+
+            black_box((lhs, rhs));
+        }
+
+        let val = 42;
+
+        let null = VirtAddr::from(&val);
+        let addr = null.same_lifetime(0x10000);
+
+        foo(null, addr);
+    }
+
+    #[test]
+    fn test_promote_to_static() {
+        fn take_static(addr: VirtAddr<'static>) {
+            use core::hint::black_box;
+
+            black_box(addr);
+        }
+
+        let addr = {
+            let val = 24;
+            unsafe { VirtAddr::from(&val).promote_to_static() }
+        };
+
+        assert!(!addr.is_null());
+
+        let val = 42;
+
+        let local = VirtAddr::from(&val);
+        let static_addr = unsafe { local.promote_to_static() };
+
+        take_static(static_addr);
+
+        assert_eq!(*local, *static_addr);
+        assert_eq!(local, static_addr); // TODO: Not sure if we should allow this
     }
 }
