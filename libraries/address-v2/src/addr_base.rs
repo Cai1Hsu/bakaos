@@ -33,7 +33,10 @@ macro_rules! impl_addr {
         impl<'a> $type<'a> {
             #[inline(always)]
             pub const fn same_lifetime(&'a self, addr: usize) -> $type<'a> {
-                $type::new(addr)
+                $type {
+                    _0: addr,
+                    _marker: self._marker,
+                }
             }
         }
 
