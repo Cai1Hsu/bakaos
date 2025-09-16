@@ -6,10 +6,10 @@ pub fn main() {
     println!("cargo:rerun-if-env-changed={}", test_env());
 
     // see https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html#cargorustc-check-cfg-for-buildrsbuild-script
-    println!("cargo:rustc-check-cfg=cfg(runtime_std)");
+    println!("cargo:rustc-check-cfg=cfg(use_std)");
 
     if (is_target_support_std() || check_env(&test_env())) && !check_env(&feature_env("no_std")) {
-        println!("cargo:rustc-cfg=runtime_std");
+        println!("cargo:rustc-cfg=use_std");
     }
 }
 

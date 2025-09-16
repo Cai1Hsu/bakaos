@@ -1,0 +1,21 @@
+[package]
+name = "runtime-std"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[build-dependencies]
+serde_json = "1.0"
+
+[dependencies]
+utilities = { path = "../utilities" }
+hermit-sync = "0.1.6"
+
+[features]
+default = []
+
+# Whether the Rust's standard library is available.
+# If disabled, and the std crate is available, the std crate is used.
+# Otherwise, the core crate, alloc and some custom implementations are used to simulate the std crate
+no_std = []

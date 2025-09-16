@@ -29,10 +29,11 @@ mod boot_required {
     }
 
     pub(crate) fn alloc_cpu_local_storage(cpuid: u32) -> NonNull<CpuLocalStorage> {
-        let template_start = unsafe { symbol_ptr!("__scls" as u8) };
-        let template_end = unsafe { symbol_ptr!("__ecls" as u8) };
+        let template_start = unsafe { symbol_ptr!("__scls").cast::<u8>() };
+        let template_end = unsafe { symbol_ptr!("__ecls").cast::<u8>() };
 
-        let cls_len = template_end.as_ptr() as usize - template_start.as_ptr() as usize;
+        let cls_len =
+            unsafe { template_end.as_ptr().offset_from(template_start.as_ptr()) } as usize;
 
         let layout = core::alloc::Layout::from_size_align(cls_len, 4096).unwrap();
         let cls = alloc_frame(layout);

@@ -1,11 +1,11 @@
 pub mod arch;
 pub mod cpu;
 
-#[cfg(feature = "binary_crate")]
+#[cfg(all(target_os = "none", feature = "binary_crate"))]
 mod panic;
 
-#[cfg(not(runtime_std))]
-pub mod serial;
+#[cfg(target_os = "none")]
+mod serial;
 
 #[cfg(feature = "boot")]
 pub(crate) mod bss;
@@ -15,10 +15,8 @@ pub use boot_required::*;
 
 #[cfg(feature = "boot")]
 mod boot_required {
+    use crate::{hermit_sync::SpinMutex, symbol_ptr};
     use core::{alloc::Layout, ptr::NonNull};
-    use hermit_sync::SpinMutex;
-
-    use crate::symbol_ptr;
 
     static MEMORY_START: SpinMutex<usize> = SpinMutex::new(0);
 
@@ -28,7 +26,7 @@ mod boot_required {
     ///
     /// This function must be called only once, before any memory allocation is performed.
     pub(crate) unsafe fn init() {
-        *MEMORY_START.lock() = symbol_ptr!("__ekernel") as usize;
+        *MEMORY_START.lock() = symbol_ptr!("__ekernel").as_ptr() as usize;
     }
 
     /// Returns the start address of the memory region.

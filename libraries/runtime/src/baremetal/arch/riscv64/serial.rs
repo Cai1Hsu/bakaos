@@ -1,5 +1,4 @@
-use alloc_crate::fmt;
-use hermit_sync::SpinMutex;
+use crate::{fmt, hermit_sync::SpinMutex};
 
 pub static SERIAL_PORT: SpinMutex<WriteOnlySerialPort> = SpinMutex::new(WriteOnlySerialPort);
 

@@ -5,6 +5,7 @@ members = [
     "test-utilities",
     "source-generation",
     "libraries/runtime",
+    "libraries/runtime-std",
     "libraries/runtime-macros",
     "libraries/utilities",
     "libraries/timing",

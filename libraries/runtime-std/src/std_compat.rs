@@ -2,6 +2,8 @@
 //! This file is manually generated from `rustc/library/std/src/lib.rs`.
 //! We are going to add automated generation in the future.
 
+extern crate alloc as alloc_crate; // Rust std's alias for alloc crate
+
 pub use ::core::any;
 pub use ::core::array;
 pub use ::core::cell;
@@ -23,14 +25,14 @@ pub use ::core::ptr;
 pub use ::core::result;
 pub use ::core::*;
 
-pub use ::alloc_crate::alloc;
-pub use ::alloc_crate::borrow;
-pub use ::alloc_crate::boxed;
-pub use ::alloc_crate::fmt;
-pub use ::alloc_crate::format;
-pub use ::alloc_crate::rc;
-pub use ::alloc_crate::slice;
-pub use ::alloc_crate::str;
-pub use ::alloc_crate::string;
-pub use ::alloc_crate::sync;
-pub use ::alloc_crate::vec;
+pub use self::alloc_crate::alloc;
+pub use self::alloc_crate::borrow;
+pub use self::alloc_crate::boxed;
+pub use self::alloc_crate::fmt;
+pub use self::alloc_crate::format;
+pub use self::alloc_crate::rc;
+pub use self::alloc_crate::slice;
+pub use self::alloc_crate::str;
+pub use self::alloc_crate::string;
+pub use self::alloc_crate::sync;
+pub use self::alloc_crate::vec;

@@ -25,9 +25,16 @@ pub(crate) static CPU0: CpuLocalStorage = CpuLocalStorage {
 #[inline(always)]
 pub(super) unsafe fn get_cpu_local_base(ptr: *mut u8) -> *mut u8 {
     let vaddr = ptr as usize;
-    let base = symbol_ptr!("__scls") as usize;
+    let base = symbol_ptr!("__scls").as_ptr() as usize;
 
-    debug_assert!(vaddr >= base);
+    debug_assert!(
+        vaddr >= base,
+        "Pointer is below the CPU local storage region"
+    );
+    debug_assert!(
+        vaddr < symbol_ptr!("__ecls").as_ptr() as usize,
+        "Pointer is above the CPU local storage region"
+    );
 
     let offset = vaddr - base;
 

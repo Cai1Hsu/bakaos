@@ -4,7 +4,7 @@ pub mod system;
 #[doc(hidden)]
 pub mod serial;
 
-#[cfg(all(feature = "boot", not(runtime_std)))]
+#[cfg(all(target_os = "none", feature = "boot"))]
 mod boot;
 
 pub(crate) mod cpu;
