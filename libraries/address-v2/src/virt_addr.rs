@@ -16,7 +16,7 @@ impl VirtAddr<'_> {
     /// A valid address not only requires to be non-null, but also must point to
     /// a properly mapped memory region in the **current** address space.
     #[inline(always)]
-    pub unsafe fn as_ptr<T>(self) -> *const T {
+    pub unsafe fn as_ptr<T: Sized>(self) -> *const T {
         *self as *const T
     }
 
@@ -31,12 +31,12 @@ impl VirtAddr<'_> {
     /// A valid address not only requires to be non-null, but also must point to
     /// a properly mapped memory region in the **current** address space.
     #[inline(always)]
-    pub unsafe fn as_mut_ptr<T>(self) -> *mut T {
+    pub unsafe fn as_mut_ptr<T: Sized>(self) -> *mut T {
         *self as *mut T
     }
 }
 
-impl<T> From<*const T> for VirtAddr<'static> {
+impl<T: ?Sized> From<*const T> for VirtAddr<'static> {
     #[inline(always)]
     fn from(ptr: *const T) -> Self {
         VirtAddr::new(ptr as *const () as usize)
