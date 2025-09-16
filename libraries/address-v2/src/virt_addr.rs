@@ -4,7 +4,7 @@ impl_addr!(VirtAddr,
     /// Represents a virtual address.
 );
 
-impl VirtAddr {
+impl VirtAddr<'_> {
     /// Returns the address as a raw pointer of type `*const T`.
     ///
     /// # Safety
@@ -17,7 +17,7 @@ impl VirtAddr {
     /// a properly mapped memory region in the **current** address space.
     #[inline(always)]
     pub unsafe fn as_ptr<T>(self) -> *const T {
-        self.0 as *const T
+        *self as *const T
     }
 
     /// Returns the address as a raw pointer of type `*mut T`.
@@ -32,32 +32,32 @@ impl VirtAddr {
     /// a properly mapped memory region in the **current** address space.
     #[inline(always)]
     pub unsafe fn as_mut_ptr<T>(self) -> *mut T {
-        self.0 as *mut T
+        *self as *mut T
     }
 }
 
-impl<T> From<*const T> for VirtAddr {
+impl<T> From<*const T> for VirtAddr<'static> {
     #[inline(always)]
     fn from(ptr: *const T) -> Self {
         VirtAddr::new(ptr as *const () as usize)
     }
 }
 
-impl<T: ?Sized> From<&T> for VirtAddr
+impl<'a, T: ?Sized> From<&'a T> for VirtAddr<'a>
 where
     T: Deref,
 {
     #[inline(always)]
-    default fn from(value: &T) -> Self {
+    default fn from(value: &'a T) -> Self {
         let inner = Deref::deref(value);
 
         inner.into()
     }
 }
 
-impl<T: ?Sized> From<&T> for VirtAddr {
+impl<'a, T: ?Sized> From<&'a T> for VirtAddr<'a> {
     #[inline(always)]
-    default fn from(value: &T) -> Self {
+    default fn from(value: &'a T) -> Self {
         VirtAddr::new(value as *const T as *const () as usize)
     }
 }
