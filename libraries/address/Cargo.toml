@@ -1,5 +1,5 @@
 [package]
-name = "address-v2"
+name = "address"
 version = "0.1.0"
 edition = "2021"
 

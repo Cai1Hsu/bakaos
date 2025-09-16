@@ -26,7 +26,7 @@ macro_rules! impl_page_range {
             ///
             /// # Examples
             /// ```rust
-            /// # use address_v2::{PhysPage, PhysPageRange, PhysAddr};
+            /// # use address::{PhysPage, PhysPageRange, PhysAddr};
             /// let start_page = PhysPage::new_4k(PhysAddr::new(0x1000)).unwrap();
             /// let range = PhysPageRange::new(start_page, 3);
             /// assert_eq!(range.len(), 3);
@@ -53,7 +53,7 @@ macro_rules! impl_page_range {
             ///
             /// # Examples
             /// ```rust
-            /// # use address_v2::{PhysPage, PhysPageRange, PhysAddr};
+            /// # use address::{PhysPage, PhysPageRange, PhysAddr};
             /// let start = PhysPage::new_4k(PhysAddr::new(0x1000)).unwrap();
             /// let end = PhysPage::new_4k(PhysAddr::new(0x3000)).unwrap();
             /// let range = PhysPageRange::from_start_end(start, end);
@@ -89,7 +89,7 @@ macro_rules! impl_page_range {
             ///
             /// # Examples
             /// ```rust
-            /// # use address_v2::{PhysPage, PhysPageRange, PhysAddr};
+            /// # use address::{PhysPage, PhysPageRange, PhysAddr};
             /// let start_page = PhysPage::new_4k(PhysAddr::new(0x1000)).unwrap();
             /// let range = PhysPageRange::new(start_page, 2);
             /// assert_eq!(range.start(), start_page);
@@ -106,7 +106,7 @@ macro_rules! impl_page_range {
             ///
             /// # Examples
             /// ```rust
-            /// # use address_v2::{PhysPage, PhysPageRange, PhysAddr};
+            /// # use address::{PhysPage, PhysPageRange, PhysAddr};
             /// let start_page = PhysPage::new_4k(PhysAddr::new(0x1000)).unwrap();
             /// let range = PhysPageRange::new(start_page, 2);
             /// let expected_end = start_page + 2;
@@ -124,7 +124,7 @@ macro_rules! impl_page_range {
             ///
             /// # Examples
             /// ```rust
-            /// # use address_v2::{PhysPage, PhysPageRange, PhysAddr};
+            /// # use address::{PhysPage, PhysPageRange, PhysAddr};
             /// let start_page = PhysPage::new_4k(PhysAddr::new(0x1000)).unwrap();
             /// let range = PhysPageRange::new(start_page, 3);
             /// assert_eq!(range.addr_len(), 3 * 0x1000); // 3 * 4KB = 12KB
@@ -141,7 +141,7 @@ macro_rules! impl_page_range {
             ///
             /// # Examples
             /// ```rust
-            /// # use address_v2::{PhysPage, PhysPageRange, PhysAddr};
+            /// # use address::{PhysPage, PhysPageRange, PhysAddr};
             /// let start_page = PhysPage::new_4k(PhysAddr::new(0x1000)).unwrap();
             /// let range = PhysPageRange::new(start_page, 5);
             /// assert_eq!(range.len(), 5);
@@ -158,7 +158,7 @@ macro_rules! impl_page_range {
             ///
             /// # Examples
             /// ```rust
-            /// # use address_v2::{PhysPage, PhysPageRange, PhysAddr};
+            /// # use address::{PhysPage, PhysPageRange, PhysAddr};
             /// let start_page = PhysPage::new_4k(PhysAddr::new(0x1000)).unwrap();
             /// let empty_range = PhysPageRange::new(start_page, 0);
             /// assert!(empty_range.is_empty());
@@ -178,7 +178,7 @@ macro_rules! impl_page_range {
             ///
             /// # Examples
             /// ```rust
-            /// # use address_v2::{PhysPage, PhysPageRange, PhysAddr};
+            /// # use address::{PhysPage, PhysPageRange, PhysAddr};
             /// let start_page = PhysPage::new_4k(PhysAddr::new(0x1000)).unwrap();
             /// let page_range = PhysPageRange::new(start_page, 2);
             /// let addr_range = page_range.as_addr_range();
@@ -202,7 +202,7 @@ macro_rules! impl_page_range {
             ///
             /// # Examples
             /// ```rust
-            /// # use address_v2::{PhysPage, PhysPageRange, PhysAddr};
+            /// # use address::{PhysPage, PhysPageRange, PhysAddr};
             /// let start_page = PhysPage::new_4k(PhysAddr::new(0x1000)).unwrap();
             /// let range = PhysPageRange::new(start_page, 3);
             ///
@@ -235,7 +235,7 @@ macro_rules! impl_page_range {
             ///
             /// # Examples
             /// ```rust
-            /// # use address_v2::{PhysPage, PhysPageRange, PhysAddr};
+            /// # use address::{PhysPage, PhysPageRange, PhysAddr};
             /// let start1 = PhysPage::new_4k(PhysAddr::new(0x1000)).unwrap();
             /// let range1 = PhysPageRange::new(start1, 4); // 0x1000..0x5000
             ///
@@ -270,7 +270,7 @@ macro_rules! impl_page_range {
             ///
             /// # Examples
             /// ```rust
-            /// # use address_v2::{PhysPage, PhysPageRange, PhysAddr};
+            /// # use address::{PhysPage, PhysPageRange, PhysAddr};
             /// let start1 = PhysPage::new_4k(PhysAddr::new(0x1000)).unwrap();
             /// let range1 = PhysPageRange::new(start1, 3); // 0x1000..0x4000
             ///
@@ -305,7 +305,7 @@ macro_rules! impl_page_range {
             ///
             /// # Examples
             /// ```rust
-            /// # use address_v2::{PhysPage, PhysPageRange, PhysAddr};
+            /// # use address::{PhysPage, PhysPageRange, PhysAddr};
             /// let start1 = PhysPage::new_4k(PhysAddr::new(0x1000)).unwrap();
             /// let range1 = PhysPageRange::new(start1, 3); // 0x1000..0x4000
             ///
@@ -343,7 +343,7 @@ macro_rules! impl_page_range {
             ///
             /// # Examples
             /// ```
-            /// # use address_v2::{PhysPage, PhysPageRange, PhysAddr};
+            /// # use address::{PhysPage, PhysPageRange, PhysAddr};
             /// let start1 = PhysPage::new_4k(PhysAddr::new(0x1000)).unwrap();
             /// let range1 = PhysPageRange::new(start1, 1); // 0x1000..0x2000
             ///
@@ -377,7 +377,7 @@ macro_rules! impl_page_range {
             ///
             /// # Examples
             /// ```
-            /// # use address_v2::{PhysPage, PhysPageRange, PhysAddr};
+            /// # use address::{PhysPage, PhysPageRange, PhysAddr};
             ///
             /// let start1 = PhysPage::new_4k(PhysAddr::new(0x1000)).unwrap();
             /// let range1 = PhysPageRange::new(start1, 3); // 0x1000..0x4000
@@ -436,7 +436,7 @@ macro_rules! impl_page_range {
             ///
             /// # Examples
             /// ```rust
-            /// # use address_v2::{PhysPage, PhysPageRange, PhysAddr};
+            /// # use address::{PhysPage, PhysPageRange, PhysAddr};
             /// let start_page = PhysPage::new_4k(PhysAddr::new(0x1000)).unwrap();
             /// let range = PhysPageRange::new(start_page, 3);
             ///
@@ -465,7 +465,7 @@ macro_rules! impl_page_range {
             ///
             /// # Examples
             /// ```rust
-            /// # use address_v2::{PhysPage, PhysPageRange, PhysAddr};
+            /// # use address::{PhysPage, PhysPageRange, PhysAddr};
             /// let start_page = PhysPage::new_4k(PhysAddr::new(0x1000)).unwrap();
             /// let range = PhysPageRange::new(start_page, 2);
             ///

@@ -26,7 +26,7 @@ macro_rules! impl_addr {
             ///
             /// # Examples
             /// ```
-            /// # use address_v2::PhysAddr;
+            /// # use address::PhysAddr;
             /// let addr = PhysAddr::new(0x1234);
             /// let aligned = addr.align_down(0x1000);
             /// assert_eq!(*aligned, 0x1000);
@@ -50,7 +50,7 @@ macro_rules! impl_addr {
             ///
             /// # Examples
             /// ```
-            /// # use address_v2::PhysAddr;
+            /// # use address::PhysAddr;
             /// let addr = PhysAddr::new(0x1234);
             /// let aligned = addr.align_up(0x1000);
             /// assert_eq!(*aligned, 0x2000);
@@ -70,7 +70,7 @@ macro_rules! impl_addr {
             ///
             /// # Examples
             /// ```
-            /// # use address_v2::PhysAddr;
+            /// # use address::PhysAddr;
             /// let addr = PhysAddr::new(0x1000);
             /// assert!(addr.is_aligned(0x1000));
             /// assert!(!addr.is_aligned(0x2000));
@@ -90,7 +90,7 @@ macro_rules! impl_addr {
             ///
             /// # Examples
             /// ```
-            /// # use address_v2::PhysAddr;
+            /// # use address::PhysAddr;
             /// let addr = PhysAddr::new(0x1234);
             /// assert_eq!(addr.offset_from_alignment(0x1000), 0x234);
             /// ```

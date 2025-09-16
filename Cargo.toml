@@ -9,7 +9,7 @@ members = [
     "libraries/runtime-macros",
     "libraries/utilities",
     "libraries/timing",
-    "libraries/address-v2",
+    "libraries/address",
     "libraries/path",
     "libraries/threading",
     "libraries/constants",

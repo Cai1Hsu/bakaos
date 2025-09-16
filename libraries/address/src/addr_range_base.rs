@@ -27,7 +27,7 @@ macro_rules! impl_range {
             ///
             /// # Examples
             /// ```
-            /// # use address_v2::{PhysAddr, PhysAddrRange};
+            /// # use address::{PhysAddr, PhysAddrRange};
             /// let range = PhysAddrRange::new(PhysAddr::new(0x1000), PhysAddr::new(0x2000));
             /// assert_eq!(range.len(), 0x1000);
             /// ```
@@ -46,7 +46,7 @@ macro_rules! impl_range {
             /// # Examples
             ///
             /// ```
-            /// # use address_v2::{PhysAddr, PhysAddrRange};
+            /// # use address::{PhysAddr, PhysAddrRange};
             /// let range = unsafe { PhysAddrRange::new_unchecked(PhysAddr::new(0x1000), PhysAddr::new(0x2000)) };
             /// assert_eq!(range.len(), 0x1000);
             /// ```
@@ -59,7 +59,7 @@ macro_rules! impl_range {
             ///
             /// # Examples
             /// ```
-            /// # use address_v2::{PhysAddr, PhysAddrRange};
+            /// # use address::{PhysAddr, PhysAddrRange};
             /// let range = PhysAddrRange::from_start_len(PhysAddr::new(0x1000), 0x1000);
             /// assert_eq!(range.start(), PhysAddr::new(0x1000));
             /// assert_eq!(range.end(), PhysAddr::new(0x2000));
@@ -97,7 +97,7 @@ macro_rules! impl_range {
             ///
             /// # Examples
             /// ```
-            /// # use address_v2::{PhysAddr, PhysAddrRange};
+            /// # use address::{PhysAddr, PhysAddrRange};
             /// let range = PhysAddrRange::new(PhysAddr::new(0x1000), PhysAddr::new(0x2000));
             /// assert!(range.contains_addr(PhysAddr::new(0x1500)));
             /// assert!(!range.contains_addr(PhysAddr::new(0x2000))); // end is exclusive
@@ -111,7 +111,7 @@ macro_rules! impl_range {
             ///
             /// # Examples
             /// ```
-            /// # use address_v2::{PhysAddr, PhysAddrRange};
+            /// # use address::{PhysAddr, PhysAddrRange};
             /// let outer = PhysAddrRange::new(PhysAddr::new(0x1000), PhysAddr::new(0x3000));
             /// let inner = PhysAddrRange::new(PhysAddr::new(0x1500), PhysAddr::new(0x2500));
             /// assert!(outer.contains(inner));
@@ -125,7 +125,7 @@ macro_rules! impl_range {
             ///
             /// # Examples
             /// ```
-            /// # use address_v2::{PhysAddr, PhysAddrRange};
+            /// # use address::{PhysAddr, PhysAddrRange};
             /// let range1 = PhysAddrRange::new(PhysAddr::new(0x1000), PhysAddr::new(0x2000));
             /// let range2 = PhysAddrRange::new(PhysAddr::new(0x1500), PhysAddr::new(0x2500));
             /// assert!(range1.overlaps(range2));
@@ -140,7 +140,7 @@ macro_rules! impl_range {
             ///
             /// # Examples
             /// ```
-            /// # use address_v2::{PhysAddr, PhysAddrRange};
+            /// # use address::{PhysAddr, PhysAddrRange};
             /// let range1 = PhysAddrRange::new(PhysAddr::new(0x1000), PhysAddr::new(0x2000));
             /// let range2 = PhysAddrRange::new(PhysAddr::new(0x2000), PhysAddr::new(0x3000));
             /// assert!(range1.is_adjacent(range2));
@@ -162,7 +162,7 @@ macro_rules! impl_range {
             ///
             /// # Examples
             /// ```
-            /// # use address_v2::{PhysAddr, PhysAddrRange};
+            /// # use address::{PhysAddr, PhysAddrRange};
             /// let range1 = PhysAddrRange::new(PhysAddr::new(0x1000), PhysAddr::new(0x2000));
             /// let range2 = PhysAddrRange::new(PhysAddr::new(0x1500), PhysAddr::new(0x2500));
             /// let merged = range1.merge(range2).unwrap();
@@ -184,7 +184,7 @@ macro_rules! impl_range {
             ///
             /// # Examples
             /// ```
-            /// # use address_v2::{PhysAddr, PhysAddrRange};
+            /// # use address::{PhysAddr, PhysAddrRange};
             /// let range1 = PhysAddrRange::new(PhysAddr::new(0x1000), PhysAddr::new(0x2000));
             /// let range2 = PhysAddrRange::new(PhysAddr::new(0x1500), PhysAddr::new(0x2500));
             /// let intersection = range1.intersection(range2).unwrap();
@@ -206,7 +206,7 @@ macro_rules! impl_range {
             ///
             /// # Examples
             /// ```
-            /// # use address_v2::{PhysAddr, PhysAddrRange};
+            /// # use address::{PhysAddr, PhysAddrRange};
             /// let range = PhysAddrRange::new(PhysAddr::new(0x1234), PhysAddr::new(0x2345));
             /// let aligned = range.align_to(0x1000);
             /// assert_eq!(aligned.start(), PhysAddr::new(0x1000));
@@ -225,7 +225,7 @@ macro_rules! impl_range {
             ///
             /// # Examples
             /// ```
-            /// # use address_v2::{PhysAddr, PhysAddrRange};
+            /// # use address::{PhysAddr, PhysAddrRange};
             /// let range = PhysAddrRange::new(PhysAddr::new(0x1000), PhysAddr::new(0x1010));
             /// let addresses: Vec<_> = range.iter_step(4).unwrap().collect();
             /// assert_eq!(addresses.len(), 4);

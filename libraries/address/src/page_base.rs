@@ -42,7 +42,7 @@ macro_rules! impl_page {
             ///
             /// # Examples
             /// ```rust
-            /// # use address_v2::{PhysPage, PhysAddr};
+            /// # use address::{PhysPage, PhysAddr};
             /// let page = PhysPage::new_4k(PhysAddr::new(0x1000));
             /// assert!(page.is_some());
             ///
@@ -67,7 +67,7 @@ macro_rules! impl_page {
             ///
             /// # Examples
             /// ```rust
-            /// # use address_v2::{PhysPage, PhysAddr};
+            /// # use address::{PhysPage, PhysAddr};
             /// let page = PhysPage::new_2m(PhysAddr::new(0x200000));
             /// assert!(page.is_some());
             ///
@@ -93,7 +93,7 @@ macro_rules! impl_page {
             ///
             /// # Examples
             /// ```rust
-            /// # use address_v2::{PhysPage, PhysAddr};
+            /// # use address::{PhysPage, PhysAddr};
             /// let page = PhysPage::new_1g(PhysAddr::new(0x40000000));
             /// assert!(page.is_some());
             ///
@@ -121,7 +121,7 @@ macro_rules! impl_page {
             ///
             /// # Examples
             /// ```rust
-            /// # use address_v2::{PhysPage, PhysAddr};
+            /// # use address::{PhysPage, PhysAddr};
             /// // Create an 8KB page
             /// let page = PhysPage::new_custom(PhysAddr::new(0x2000), 0x2000);
             /// assert!(page.is_some());
@@ -158,7 +158,7 @@ macro_rules! impl_page {
             ///
             /// # Examples
             /// ```rust
-            /// # use address_v2::{PhysPage, PhysAddr};
+            /// # use address::{PhysPage, PhysAddr};
             /// // Any address and size combination is allowed
             /// let page = PhysPage::new_custom_unchecked(PhysAddr::new(0x1234), 0x5678);
             /// assert_eq!(page.size(), 0x5678);
@@ -177,7 +177,7 @@ macro_rules! impl_page {
             ///
             /// # Examples
             /// ```rust
-            /// # use address_v2::{PhysPage, PhysAddr};
+            /// # use address::{PhysPage, PhysAddr};
             /// let page = PhysPage::new_4k(PhysAddr::new(0x1000)).unwrap();
             /// assert_eq!(page.addr(), PhysAddr::new(0x1000));
             /// ```
@@ -193,7 +193,7 @@ macro_rules! impl_page {
             ///
             /// # Examples
             /// ```rust
-            /// # use address_v2::{PhysPage, PhysAddr};
+            /// # use address::{PhysPage, PhysAddr};
             /// let page_4k = PhysPage::new_4k(PhysAddr::new(0x1000)).unwrap();
             /// assert_eq!(page_4k.size(), 0x1000);
             ///
@@ -215,7 +215,7 @@ macro_rules! impl_page {
             ///
             /// # Examples
             /// ```rust
-            /// # use address_v2::{PhysPage, PhysAddr};
+            /// # use address::{PhysPage, PhysAddr};
             /// let page = PhysPage::new_4k(PhysAddr::new(0x1000)).unwrap();
             /// let range = page.as_range();
             /// assert_eq!(range.start(), PhysAddr::new(0x1000));
@@ -241,7 +241,7 @@ macro_rules! impl_page {
             ///
             /// # Examples
             /// ```rust
-            /// # use address_v2::{PhysPage, PhysAddr, PhysAddrRange};
+            /// # use address::{PhysPage, PhysAddr, PhysAddrRange};
             /// let range = PhysAddrRange::new(PhysAddr::new(0x1000), PhysAddr::new(0x2000));
             /// let page = PhysPage::try_from_range(range, 0x1000);
             /// assert!(page.is_some());
