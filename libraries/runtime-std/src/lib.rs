@@ -9,11 +9,11 @@ pub use hermit_sync;
 
 // Standard library re-exports
 
-#[cfg(use_std)]
+#[cfg(not(any(target_os = "none", feature = "no_std")))]
 extern crate std;
 
-#[cfg(use_std)]
+#[cfg(not(any(target_os = "none", feature = "no_std")))]
 pub use ::std::*;
 
-#[cfg(not(use_std))]
+#[cfg(any(target_os = "none", feature = "no_std"))]
 pub use crate::std_compat::*;
