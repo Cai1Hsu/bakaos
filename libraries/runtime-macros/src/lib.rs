@@ -228,6 +228,7 @@ fn expand_fn(func: ItemFn) -> proc_macro2::TokenStream {
         const _: () = {
             #[used]
             #[doc(hidden)]
+            #[cfg(target_os = "none")]
             #[allow(non_upper_case_globals)]
             #[cfg_attr(target_os = "none", link_section = ".ktest_array")]
             static #test_desc: #runtime_path::test::TestDesc = #runtime_path::test::TestDesc {
