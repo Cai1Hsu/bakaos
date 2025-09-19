@@ -31,7 +31,7 @@ _start_high:
 
     la sp, __stack_top
     li t0, VIRT_ADDR_OFFSET
-    add sp, t0, sp
+    or sp, t0, sp
 
     j rust_boot_main
 
