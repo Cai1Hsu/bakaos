@@ -229,7 +229,7 @@ fn expand_fn(func: ItemFn) -> proc_macro2::TokenStream {
             #[used]
             #[doc(hidden)]
             #[allow(non_upper_case_globals)]
-            #[link_section = ".ktest_array"]
+            #[cfg_attr(target_os = "none", link_section = ".ktest_array")]
             static #test_desc: #runtime_path::test::TestDesc = #runtime_path::test::TestDesc {
                 name: ::core::prelude::v1::stringify!(#ident),
                 module_path: ::core::prelude::v1::module_path!(),
