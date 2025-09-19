@@ -261,8 +261,8 @@ fn expand_mod(module: ItemMod) -> proc_macro2::TokenStream {
     let content = module.content;
 
     let attrs = quote! {
-            #[cfg(any(test, ktest))]
-            #(#attrs)*
+        #[cfg(any(test, ktest))]
+        #(#attrs)*
     };
 
     if let Some((_, items)) = content {
