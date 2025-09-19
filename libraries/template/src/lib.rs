@@ -1,19 +1,26 @@
-#![cfg_attr(not(feature = "std"), no_std)]
+#![no_std]
+extern crate runtime as std;
 
-#[cfg(feature = "std")]
-extern crate std;
+use std::ktest;
 
 pub fn add(left: usize, right: usize) -> usize {
     left + right
 }
 
-#[cfg(test)]
+#[ktest]
 mod tests {
     use super::*;
 
-    #[test]
+    #[ktest]
     fn it_works() {
         let result = add(2, 2);
         assert_eq!(result, 4);
+    }
+
+    #[ktest]
+    #[should_panic]
+    fn it_fails() {
+        let result = add(2, 2);
+        assert_eq!(result, 5);
     }
 }
