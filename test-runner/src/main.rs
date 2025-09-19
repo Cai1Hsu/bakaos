@@ -8,7 +8,7 @@ include!(concat!(env!("OUT_DIR"), "/generated.rs"));
 mod heap;
 
 use std::{
-    println, rust_main, slice, symbol_ptr,
+    println, rust_main,
     test::{ResultExpectation, TestDesc},
 };
 
@@ -38,10 +38,22 @@ pub fn main() {
 }
 
 fn collect_tests() -> &'static [TestDesc] {
-    unsafe {
-        let start = symbol_ptr!("__sktest_array").cast::<TestDesc>();
-        let end = symbol_ptr!("__ektest_array").cast::<TestDesc>();
+    #[cfg(not(target_os = "none"))]
+    {
+        // Since direct `cargo test` is supported on hosted platform,
+        // We didn't implement a way to collect tests on hosted platform yet.
+        &[]
+    }
 
-        slice::from_raw_parts(start.as_ptr(), end.offset_from(start) as usize)
+    #[cfg(target_os = "none")]
+    {
+        use std::{slice, symbol_ptr};
+
+        unsafe {
+            let start = symbol_ptr!("__sktest_array").cast::<TestDesc>();
+            let end = symbol_ptr!("__ektest_array").cast::<TestDesc>();
+
+            slice::from_raw_parts(start.as_ptr(), end.offset_from(start) as usize)
+        }
     }
 }
