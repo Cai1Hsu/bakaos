@@ -149,9 +149,7 @@ fn parse_test_expectation(attrs: &[Attribute]) -> syn::Result<ExpectationSymbol>
                         ..
                     }) = &nv.value
                     {
-                        return Ok(ExpectationSymbol::ShouldPanicWithMessage(
-                            lit_str.value(),
-                        ));
+                        return Ok(ExpectationSymbol::ShouldPanicWithMessage(lit_str.value()));
                     } else {
                         return Err(syn::Error::new_spanned(
                             &nv.value,
@@ -169,14 +167,14 @@ fn parse_test_expectation(attrs: &[Attribute]) -> syn::Result<ExpectationSymbol>
                                 message = Some(s.value());
                             })
                         } else {
-                            return Err(l.error("expected `expected`"));
+                            Err(l.error("expected `expected`"))
                         }
                     })?;
 
                     if let Some(msg) = message {
                         return Ok(ExpectationSymbol::ShouldPanicWithMessage(msg));
                     } else {
-                        return Err(syn::Error::new_spanned(&ml, "expected `message` argument"));
+                        return Err(syn::Error::new_spanned(ml, "expected `message` argument"));
                     }
                 }
             }
