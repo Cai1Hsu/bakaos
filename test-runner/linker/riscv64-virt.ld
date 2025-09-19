@@ -46,8 +46,11 @@ SECTIONS
     . = ALIGN(4K);
     edata = .;
     .bss : {
+        PROVIDE(__heap_start = .);
         *(.bss.heap)
         . += 0x00800000;
+        . = ALIGN(4K);
+        PROVIDE(__heap_end = .);
         *(.bss.stack)
         PROVIDE(__stack_bottom = .);
         . = ALIGN(4K);
