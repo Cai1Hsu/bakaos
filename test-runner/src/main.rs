@@ -5,6 +5,7 @@ extern crate runtime as std;
 // see https://github.com/rust-lang/rust/issues/133491#issue-2694064193
 include!(concat!(env!("OUT_DIR"), "/generated.rs"));
 
+#[cfg(target_os = "none")]
 mod heap;
 
 use std::{
