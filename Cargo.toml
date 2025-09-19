@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "test-runner",
     "linux-syscalls",
     "test-utilities",
     "source-generation",
