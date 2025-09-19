@@ -129,7 +129,7 @@ fn generate_link_workaround_string(crates: &[Dependency]) -> String {
         .iter()
         .map(|d| {
             format!(
-                "extern crate {};",
+                "    extern crate {};",
                 d.rename.as_ref().unwrap_or(&d.name).replace('-', "_")
             )
         })
@@ -141,7 +141,7 @@ fn generate_link_workaround_string(crates: &[Dependency]) -> String {
 #[doc(hidden)]
 #[rustfmt::skip]
 mod _generated {{
-    {imports}
+{imports}
 }}"#,
     )
 }
