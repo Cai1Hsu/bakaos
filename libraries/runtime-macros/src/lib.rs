@@ -1,15 +1,15 @@
+#![coverage(off)]
 #![feature(coverage_attribute)]
 
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use proc_macro_crate::{crate_name, FoundCrate};
 use quote::{format_ident, quote};
-use syn::{parse_macro_input, Error, ItemFn};
+use syn::{parse_macro_input, spanned::Spanned, Error, Item, ItemFn, ItemMod};
 
 /// Attribute macro #[rust_main]
 /// Generates a function named `main` that calls the user's original `main` function.
 /// Allowing the same entry for both baremetal and std executables.
-#[coverage(off)]
 #[proc_macro_attribute]
 pub fn rust_main(_attr: TokenStream, item: TokenStream) -> TokenStream {
     // parse the annotated item as a function
@@ -112,4 +112,98 @@ pub fn rust_main(_attr: TokenStream, item: TokenStream) -> TokenStream {
     };
 
     TokenStream::from(expanded)
+}
+
+#[proc_macro_attribute]
+pub fn ktest(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(item as Item);
+
+    match input {
+        Item::Fn(func) => expand_fn(func).into(),
+        Item::Mod(module) => expand_mod(module).into(),
+        other => syn::Error::new_spanned(other, "#[ktest] can only be applied to fn or mod")
+            .to_compile_error()
+            .into(),
+    }
+}
+
+fn expand_fn(func: ItemFn) -> proc_macro2::TokenStream {
+    let span = func.span();
+
+    let attrs = func.attrs;
+    let vis = func.vis;
+    let sig = func.sig;
+    let block = func.block;
+    let ident = sig.ident;
+
+    let test_desc = format_ident!("test_desc_{}", ident,);
+
+    let (start_line, start_col) = (span.start().line, span.start().column);
+    let (end_line, end_col) = (span.end().line, span.end().column);
+
+    // Resolve the `runtime` crate path (handles dependency renames).
+    let runtime_path: syn::Path = match crate_name("runtime") {
+        Ok(FoundCrate::Itself) => syn::parse_quote!(crate),
+        Ok(FoundCrate::Name(name)) => {
+            let ident = syn::Ident::new(&name, Span::call_site());
+            syn::parse_quote!(#ident)
+        }
+        Err(_) => syn::parse_quote!(runtime), // fallback
+    };
+
+    quote! {
+        #[doc(hidden)]
+        const _: () = {
+            #[used]
+            #[doc(hidden)]
+            #[allow(non_upper_case_globals)]
+            #[link_section = ".ktest_array"]
+            static #test_desc: #runtime_path::test::TestDesc = #runtime_path::test::TestDesc {
+                name: ::core::prelude::v1::stringify!(#ident),
+                module_path: ::core::prelude::v1::module_path!(),
+                package: ::core::prelude::v1::env!("CARGO_PKG_NAME"),
+                source_file: ::core::prelude::v1::file!(),
+                expect: #runtime_path::test::ResultExpectation::Success,
+                start: #runtime_path::test::SourcePosition {
+                    line: #start_line,
+                    column: #start_col,
+                },
+                end: #runtime_path::test::SourcePosition {
+                    line: #end_line,
+                    column: #end_col,
+                },
+                func: #ident,
+            };
+        };
+
+        #[cfg_attr(not(target_os = "none"), ::core::prelude::v1::test)]
+        #(#attrs)*
+        #vis fn #ident() #block
+    }
+}
+
+fn expand_mod(module: ItemMod) -> proc_macro2::TokenStream {
+    let attrs = module.attrs;
+    let vis = module.vis;
+    let ident = module.ident;
+    let content = module.content;
+
+    let attrs = quote! {
+            #[cfg(any(test, ktest))]
+            #(#attrs)*
+    };
+
+    if let Some((_, items)) = content {
+        quote! {
+            #attrs
+            #vis mod #ident {
+                #(#items)*
+            }
+        }
+    } else {
+        quote! {
+            #attrs
+            #vis mod #ident;
+        }
+    }
 }
