@@ -9,6 +9,7 @@ SECTIONS
     __skernel = .;
 
     __stext = .;
+    PROVIDE(__executable_start = .);
     .text ALIGN(4K) : AT(BASE_ADDRESS) {
         KEEP(*(.text.entry))
         *(.text .text.*)
@@ -43,6 +44,16 @@ SECTIONS
         __ecls = .;
     }
 
+    . = ALIGN(8);
+    .eh_frame : {
+        PROVIDE(__eh_frame = .);
+        KEEP(*(.eh_frame .eh_frame.*))
+    }
+
+    .debug_line : {
+        KEEP(*(.debug_line))
+    }
+
     . = ALIGN(4K);
     edata = .;
     .bss : {
@@ -64,8 +75,4 @@ SECTIONS
     . = ALIGN(4K);
     __ebss = .;
     __ekernel = .;
-
-    .debug_line : {
-        KEEP(*(.debug_line))
-    }
 }
