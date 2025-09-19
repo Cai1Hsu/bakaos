@@ -7,7 +7,10 @@ include!(concat!(env!("OUT_DIR"), "/generated.rs"));
 
 mod heap;
 
-use std::{println, rust_main, slice, symbol_ptr, test::TestDesc};
+use std::{
+    println, rust_main, slice, symbol_ptr,
+    test::{ResultExpectation, TestDesc},
+};
 
 #[rust_main]
 pub fn main() {
@@ -24,6 +27,11 @@ pub fn main() {
 
     println!("Running tests...");
     for test in tests {
+        // panic unwind not supported yet
+        if !matches!(test.expect, ResultExpectation::Success) {
+            println!("test {} ... ignored", test.name);
+            continue;
+        }
         (test.func)();
         println!("test {} ... ok", test.name);
     }
