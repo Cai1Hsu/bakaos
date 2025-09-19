@@ -31,9 +31,15 @@ SECTIONS
         *(.sdata .sdata.*)
     }
 
+    .ktest_array : {
+        __sktest_array = .;
+        KEEP(*(SORT(.ktest_array)))
+        __ektest_array = .;
+    }
+
     .cls : {
         __scls = .;
-        *(.cls .cls.*)
+        KEEP(*(.cls .cls.*))
         __ecls = .;
     }
 
