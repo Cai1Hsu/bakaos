@@ -13,3 +13,4 @@ template = { path = "../libraries/template" }
 
 [target.'cfg(target_os = "none")'.dependencies]
 buddy_system_allocator = { git = "https://github.com/neuq-rcore/buddy_system_allocator" }
+unwinding = { version = "0.2.8", default-features = false, features = ["fde-static", "hide-trace", "panic", "personality", "unwinder"] } 
