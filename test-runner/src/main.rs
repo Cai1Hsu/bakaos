@@ -1,4 +1,6 @@
 #![no_std]
+#![coverage(off)]
+#![feature(coverage_attribute)]
 #![cfg_attr(target_os = "none", no_main)]
 extern crate runtime as std;
 
