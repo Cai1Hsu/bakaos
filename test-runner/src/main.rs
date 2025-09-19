@@ -17,7 +17,8 @@ use std::{
 
 #[rust_main]
 pub fn main() {
-    println!("Hello, world!");
+    #[cfg(target_os = "none")]
+    heap::init();
 
     let tests = collect_tests();
 

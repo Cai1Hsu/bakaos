@@ -10,3 +10,6 @@ serde_json = "1.0"
 [dependencies]
 runtime = { path = "../libraries/runtime", features = ["binary_crate"] }
 template = { path = "../libraries/template" }
+
+[target.'cfg(target_os = "none")'.dependencies]
+buddy_system_allocator = { git = "https://github.com/neuq-rcore/buddy_system_allocator" }
