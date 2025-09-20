@@ -30,8 +30,6 @@ _start_high:
     xor fp, fp, fp
 
     la sp, __stack_top
-    li t0, VIRT_ADDR_OFFSET
-    or sp, t0, sp
 
     j rust_boot_main
 
