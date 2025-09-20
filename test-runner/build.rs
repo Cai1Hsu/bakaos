@@ -30,7 +30,7 @@ fn get_target_arch() -> String {
 
 fn apply_linker_script() {
     let arch = get_target_arch();
-    let linker_script = format!("test-runner/linker/{}-virt.ld", arch);
+    let linker_script = format!("linker/{}-virt.ld", arch);
 
     println!("cargo:rustc-link-arg=-T{}", linker_script);
 }

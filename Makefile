@@ -36,4 +36,4 @@ test: build-test
 		-no-reboot \
 		-smp 1 \
 		-m 1G \
-		-kernel target/$(TARGET)/debug/test-runner
+		-kernel test-runner/target/$(TARGET)/debug/test-runner
