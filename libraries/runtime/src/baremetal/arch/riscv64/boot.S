@@ -33,6 +33,7 @@ _start_high:
 
     j rust_boot_main
 
+// TODO: the pt is in .text section
 .balign 4096
 boot_pt:
     .zero 2 * 8
