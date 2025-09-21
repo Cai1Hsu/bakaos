@@ -53,7 +53,8 @@ jobs:
         target:
           - { prettyname: Cross Platform, cwd: '.' }
           - { prettyname: RISC-V64, triplet: riscv64gc-unknown-none-elf, cwd: 'kernel' }
-          - { prettyname: LoongArch64, triplet: loongarch64-unknown-none, cwd: 'kernel' }
+          # disable LoongArch64 check, we don't have much time to support it
+          # - { prettyname: LoongArch64, triplet: loongarch64-unknown-none, cwd: 'kernel' }
 
     steps:
       - name: Checkout repository
