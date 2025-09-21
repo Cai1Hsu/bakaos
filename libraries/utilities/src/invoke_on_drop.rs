@@ -98,17 +98,23 @@ use core::{
 /// ```
 #[macro_export]
 macro_rules! invoke_on_drop {
-    ($(#[$attr:meta])* || $body:expr) => {{
+    ($(#[$attr:meta])* || $body:block) => {{
         $crate::InvokeOnDrop::new(
             $(#[$attr])*
             #[inline(always)]
             |_| $body,
         )
     }};
-    ($val:expr, $(#[$attr:meta])* $func:expr) => {{
+    ($(#[$attr:meta])* move || $body:block) => {{
+        $crate::InvokeOnDrop::new(
+            $(#[$attr])*
+            #[inline(always)]
+            move |_| $body,
+        )
+    }};
+    ($val:expr, $func:expr) => {{
         $crate::InvokeOnDrop::transform(
             $val,
-            $(#[$attr])*
             #[inline(always)]
             $func,
         )
