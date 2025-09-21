@@ -8,3 +8,4 @@ pub mod serial;
 mod boot;
 
 pub(crate) mod cpu;
+pub(crate) mod vm;

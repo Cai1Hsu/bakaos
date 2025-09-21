@@ -7,6 +7,11 @@ mod panic;
 #[cfg(target_os = "none")]
 mod serial;
 
+#[cfg(target_os = "none")]
+pub mod vm {
+    pub use super::arch::current::vm::*;
+}
+
 #[cfg(feature = "boot")]
 pub(crate) mod bss;
 
