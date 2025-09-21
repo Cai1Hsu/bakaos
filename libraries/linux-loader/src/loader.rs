@@ -1,5 +1,5 @@
 use crate::{auxv::*, ProcessContext, RawMemorySpace};
-use address::VirtualAddress;
+use address::VirtAddr;
 use alloc::{fmt::Debug, string::String, sync::Arc};
 use filesystem_abstractions::{DirectoryTreeNode, IInode};
 use hermit_sync::SpinMutex;
@@ -9,10 +9,10 @@ use mmu_abstractions::IMMU;
 // A data structure to build a memory space that is used to create a new process
 pub struct LinuxLoader<'a> {
     pub memory_space: MemorySpace,
-    pub entry_pc: VirtualAddress,
-    pub stack_top: VirtualAddress,
-    pub argv_base: VirtualAddress,
-    pub envp_base: VirtualAddress,
+    pub entry_pc: VirtAddr,
+    pub stack_top: VirtAddr,
+    pub argv_base: VirtAddr,
+    pub envp_base: VirtAddr,
     pub ctx: ProcessContext<'a>,
     pub executable: String,
 }

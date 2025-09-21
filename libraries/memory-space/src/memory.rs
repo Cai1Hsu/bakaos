@@ -1,13 +1,9 @@
 use core::cell::OnceCell;
 
-use abstractions::IUsizeAlias;
 use alloc::{collections::BTreeMap, sync::Arc, vec::Vec};
 
 use crate::{AreaType, MapType, MappingArea, MappingAreaAllocation};
-use address::{
-    IAddressBase, IPageNum, IToPageNum, PhysicalAddress, VirtualAddress, VirtualAddressRange,
-    VirtualPageNum, VirtualPageNumRange,
-};
+use address::{PhysAddr, VirtAddr, VirtAddrRange, VirtPage, VirtPageRange};
 use allocation_abstractions::IFrameAllocator;
 use hermit_sync::SpinMutex;
 use mmu_abstractions::{GenericMappingFlags, PageSize, IMMU};
@@ -22,12 +18,12 @@ pub struct MemorySpace {
 #[derive(Debug, Clone, Copy)]
 pub struct MemorySpaceAttribute {
     pub brk_area_idx: usize,
-    pub brk_start: VirtualAddress,
-    pub stack_guard_base: VirtualAddressRange,
-    pub stack_range: VirtualAddressRange,
-    pub stack_guard_top: VirtualAddressRange,
-    pub elf_area: VirtualAddressRange,
-    pub signal_trampoline: VirtualPageNum,
+    pub brk_start: VirtAddr,
+    pub stack_guard_base: VirtAddrRange,
+    pub stack_range: VirtAddrRange,
+    pub stack_guard_top: VirtAddrRange,
+    pub elf_area: VirtAddrRange,
+    pub signal_trampoline: VirtPage,
 }
 
 impl Default for MemorySpaceAttribute {
@@ -41,36 +37,22 @@ impl Default for MemorySpaceAttribute {
     /// # Examples
     ///
     /// ```
-    /// use abstractions::IUsizeAlias;
-    /// use address::IAddressBase;
     /// use memory_space::MemorySpaceAttribute;
     ///
     /// let attr = MemorySpaceAttribute::default();
     /// assert_eq!(attr.brk_area_idx, usize::MAX);
     /// assert!(attr.brk_start.is_null());
-    /// assert_eq!(attr.signal_trampoline.as_usize(), 0);
+    /// assert_eq!(*attr.signal_trampoline.addr(), 0);
     /// ```
     fn default() -> Self {
         Self {
             brk_area_idx: usize::MAX,
-            brk_start: VirtualAddress::null(),
-            stack_guard_base: VirtualAddressRange::from_start_end(
-                VirtualAddress::null(),
-                VirtualAddress::null(),
-            ),
-            stack_range: VirtualAddressRange::from_start_end(
-                VirtualAddress::null(),
-                VirtualAddress::null(),
-            ),
-            stack_guard_top: VirtualAddressRange::from_start_end(
-                VirtualAddress::null(),
-                VirtualAddress::null(),
-            ),
-            elf_area: VirtualAddressRange::from_start_end(
-                VirtualAddress::null(),
-                VirtualAddress::null(),
-            ),
-            signal_trampoline: VirtualPageNum::from_usize(0),
+            brk_start: VirtAddr::null,
+            stack_guard_base: VirtAddrRange::new(VirtAddr::null, VirtAddr::null),
+            stack_range: VirtAddrRange::new(VirtAddr::null, VirtAddr::null),
+            stack_guard_top: VirtAddrRange::new(VirtAddr::null, VirtAddr::null),
+            elf_area: VirtAddrRange::new(VirtAddr::null, VirtAddr::null),
+            signal_trampoline: VirtPage::new_4k(VirtAddr::null).unwrap(),
         }
     }
 }
@@ -94,7 +76,7 @@ impl MemorySpace {
 
                 self.mmu
                     .lock()
-                    .map_single(vpn.start_addr(), paddr, PageSize::_4K, area.permissions())
+                    .map_single(vpn.addr(), paddr, PageSize::_4K, area.permissions())
                     .unwrap();
             }
         }
@@ -118,7 +100,7 @@ impl MemorySpace {
             Some(index) => {
                 let area = self.mapping_areas.remove(index);
                 for vpn in area.range.iter() {
-                    self.mmu.lock().unmap_single(vpn.start_addr()).unwrap();
+                    self.mmu.lock().unmap_single(vpn.addr()).unwrap();
                 }
                 // Drop area to release allocated frames
                 true
@@ -133,7 +115,7 @@ impl MemorySpace {
         }
     }
 
-    pub fn unmap_area_starts_with(&mut self, vpn: VirtualPageNum) -> bool {
+    pub fn unmap_area_starts_with(&mut self, vpn: VirtPage) -> bool {
         self.unmap_first_area_that(&|area| area.range.start() == vpn)
     }
 }
@@ -143,11 +125,11 @@ impl MemorySpace {
         self.attr.get().unwrap()
     }
 
-    pub fn brk_start(&self) -> VirtualAddress {
+    pub fn brk_start(&self) -> VirtAddr {
         self.attr().brk_start
     }
 
-    pub fn brk_page_range(&self) -> VirtualPageNumRange {
+    pub fn brk_page_range(&self) -> VirtPageRange {
         self.mapping_areas[self.brk_area_idx()].range()
     }
 
@@ -155,7 +137,7 @@ impl MemorySpace {
         self.attr().brk_area_idx
     }
 
-    pub fn increase_brk(&mut self, new_end_vpn: VirtualPageNum) -> Result<(), &str> {
+    pub fn increase_brk(&mut self, new_end_vpn: VirtPage) -> Result<(), &str> {
         let brk_idx = self.brk_area_idx();
 
         let old_end_vpn;
@@ -176,8 +158,7 @@ impl MemorySpace {
             return Ok(());
         }
 
-        let increased_range =
-            VirtualPageNumRange::from_start_count(old_end_vpn, page_count as usize);
+        let increased_range = VirtPageRange::new(old_end_vpn, page_count);
 
         for vpn in increased_range.iter() {
             let frame = self.allocator.lock().alloc_frame().unwrap();
@@ -189,13 +170,14 @@ impl MemorySpace {
 
             self.mmu
                 .lock()
-                .map_single(vpn.start_addr(), paddr, PageSize::_4K, area.permissions())
+                .map_single(vpn.addr(), paddr, PageSize::_4K, area.permissions())
                 .unwrap();
         }
 
         let brk_area = &mut self.mapping_areas[brk_idx];
 
-        brk_area.range = VirtualPageNumRange::from_start_end(brk_area.range.start(), new_end_vpn);
+        brk_area.range =
+            VirtPageRange::from_start_end(brk_area.range.start(), new_end_vpn).unwrap();
 
         Ok(())
     }
@@ -258,13 +240,11 @@ impl MemorySpace {
             for src_page in area.range.iter() {
                 let their_pt = them.mmu().lock();
 
-                their_pt
-                    .read_bytes(src_page.start_addr(), &mut buffer)
-                    .unwrap();
+                their_pt.read_bytes(src_page.addr(), &mut buffer).unwrap();
 
                 this.mmu()
                     .lock()
-                    .write_bytes(src_page.start_addr(), &buffer)
+                    .write_bytes(src_page.addr(), &buffer)
                     .unwrap();
             }
         }
@@ -274,11 +254,11 @@ impl MemorySpace {
         this
     }
 
-    pub fn signal_trampoline(&self) -> VirtualAddress {
-        self.attr().signal_trampoline.start_addr()
+    pub fn signal_trampoline(&self) -> VirtPage {
+        self.attr().signal_trampoline
     }
 
-    pub fn register_signal_trampoline(&mut self, sigreturn: PhysicalAddress) {
+    pub fn register_signal_trampoline(&mut self, sigreturn: PhysAddr) {
         const PERMISSIONS: GenericMappingFlags = GenericMappingFlags::Kernel
             .union(GenericMappingFlags::User)
             .union(GenericMappingFlags::Readable)
@@ -286,17 +266,22 @@ impl MemorySpace {
 
         log::info!("Registering signal trampoline at {:?}", sigreturn);
 
-        assert!(self.signal_trampoline() != VirtualAddress::null());
+        assert!(!self.signal_trampoline().addr().is_null());
 
         let trampoline_page = self.signal_trampoline();
 
         self.mmu
             .lock()
-            .map_single(trampoline_page, sigreturn, PageSize::_4K, PERMISSIONS)
+            .map_single(
+                trampoline_page.addr(),
+                sigreturn,
+                PageSize::_4K,
+                PERMISSIONS,
+            )
             .unwrap();
 
         self.mapping_areas.push(MappingArea::new(
-            VirtualPageNumRange::from_start_count(trampoline_page.to_floor_page_num(), 1),
+            VirtPageRange::new(trampoline_page, 1),
             AreaType::SignalTrampoline,
             MapType::Framed,
             PERMISSIONS,

@@ -1,4 +1,4 @@
-use address::{VirtualPageNum, VirtualPageNumRange};
+use address::{VirtPage, VirtPageRange};
 use alloc::{collections::btree_map::BTreeMap, sync::Arc};
 use allocation_abstractions::{FrameDesc, IFrameAllocator};
 use hermit_sync::SpinMutex;
@@ -7,7 +7,7 @@ use mmu_abstractions::GenericMappingFlags;
 use crate::{AreaType, MapType};
 
 pub struct MappingArea {
-    pub range: VirtualPageNumRange,
+    pub range: VirtPageRange,
     pub area_type: AreaType,
     pub map_type: MapType,
     pub permissions: GenericMappingFlags,
@@ -15,7 +15,7 @@ pub struct MappingArea {
 }
 
 impl MappingArea {
-    pub fn range(&self) -> VirtualPageNumRange {
+    pub fn range(&self) -> VirtPageRange {
         self.range
     }
 
@@ -28,7 +28,7 @@ impl MappingArea {
     }
 
     pub fn new(
-        range: VirtualPageNumRange,
+        range: VirtPageRange,
         area_type: AreaType,
         map_type: MapType,
         permissions: GenericMappingFlags,
@@ -53,8 +53,8 @@ impl MappingArea {
         }
     }
 
-    pub fn contains(&self, vpn: VirtualPageNum) -> bool {
-        self.range.contains(vpn)
+    pub fn contains(&self, vpn: VirtPage) -> bool {
+        self.range.contains_page(vpn)
     }
 }
 
@@ -72,7 +72,7 @@ impl alloc::fmt::Debug for MappingArea {
 
 pub struct MappingAreaAllocation {
     pub allocator: Arc<SpinMutex<dyn IFrameAllocator>>,
-    pub frames: BTreeMap<VirtualPageNum, FrameDesc>,
+    pub frames: BTreeMap<VirtPage, FrameDesc>,
 }
 
 impl MappingAreaAllocation {

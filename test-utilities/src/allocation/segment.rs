@@ -1,8 +1,7 @@
 use core::{alloc::Layout, ptr::NonNull};
 use std::{collections::BTreeMap, sync::Arc};
 
-use abstractions::IUsizeAlias;
-use address::{PhysicalAddress, PhysicalAddressRange};
+use address::{PhysAddr, PhysAddrRange, PhysPage, PhysPageRange};
 use allocation_abstractions::{FrameDesc, FrameRangeDesc, IFrameAllocator};
 use hermit_sync::SpinMutex;
 use mmu_abstractions::IMMU;
@@ -10,7 +9,7 @@ use mmu_abstractions::IMMU;
 use crate::{allocation::ITestFrameAllocator, memory::TestMMU};
 
 pub struct TestFrameAllocator {
-    records: BTreeMap<PhysicalAddress, HostMemory>,
+    records: BTreeMap<PhysAddr, HostMemory>,
 }
 
 unsafe impl Send for TestFrameAllocator {}
@@ -37,8 +36,8 @@ impl TestFrameAllocator {
 }
 
 impl ITestFrameAllocator for TestFrameAllocator {
-    fn check_paddr(&self, paddr: PhysicalAddress, len: usize) -> bool {
-        let range = PhysicalAddressRange::from_start_len(paddr, len);
+    fn check_paddr(&self, paddr: PhysAddr, len: usize) -> bool {
+        let range = PhysAddrRange::from_start_len(paddr, len);
 
         for mem in self.records.values() {
             let target_range = mem.paddr_range();
@@ -51,7 +50,7 @@ impl ITestFrameAllocator for TestFrameAllocator {
         false
     }
 
-    fn linear_map(&self, _: PhysicalAddress) -> Option<*mut u8> {
+    fn linear_map(&self, _: PhysAddr) -> Option<*mut u8> {
         None
     }
 }
@@ -62,19 +61,19 @@ pub(crate) struct HostMemory {
 }
 
 impl HostMemory {
-    pub fn alloc(num_frames: usize) -> (PhysicalAddress, Self) {
+    pub fn alloc(num_frames: usize) -> (PhysAddr, Self) {
         let layout = create_layout(num_frames);
         let (pa, ptr) = heap_allocate(layout);
 
         (pa, Self { ptr, layout })
     }
 
-    pub fn paddr(&self) -> PhysicalAddress {
-        PhysicalAddress::from_usize(self.ptr.as_ptr() as usize)
+    pub fn paddr(&self) -> PhysAddr {
+        PhysAddr::new(self.ptr.as_ptr() as usize)
     }
 
-    pub fn paddr_range(&self) -> PhysicalAddressRange {
-        PhysicalAddressRange::from_start_len(self.paddr(), self.layout.size())
+    pub fn paddr_range(&self) -> PhysAddrRange {
+        PhysAddrRange::from_start_len(self.paddr(), self.layout.size())
     }
 }
 
@@ -111,7 +110,9 @@ impl IFrameAllocator for TestFrameAllocator {
 
         self.records.insert(pa, mem);
 
-        Some(unsafe { FrameRangeDesc::new(pa, count) })
+        Some(unsafe {
+            FrameRangeDesc::new(PhysPageRange::new(PhysPage::new_4k(pa).unwrap(), count))
+        })
     }
 
     fn dealloc(&mut self, frame: allocation_abstractions::FrameDesc) {
@@ -120,7 +121,7 @@ impl IFrameAllocator for TestFrameAllocator {
     }
 
     fn dealloc_range(&mut self, range: allocation_abstractions::FrameRangeDesc) {
-        self.records.remove(&range.start);
+        self.records.remove(&range.start().addr());
         core::mem::forget(range);
     }
 }
@@ -131,10 +132,10 @@ const fn create_layout(num_frame: usize) -> Layout {
     }
 }
 
-fn heap_allocate(layout: Layout) -> (PhysicalAddress, NonNull<u8>) {
+fn heap_allocate(layout: Layout) -> (PhysAddr, NonNull<u8>) {
     let raw_ptr = unsafe { std::alloc::alloc_zeroed(layout) };
 
-    (PhysicalAddress::from_usize(raw_ptr as usize), unsafe {
+    (PhysAddr::new(raw_ptr as usize), unsafe {
         NonNull::new_unchecked(raw_ptr)
     })
 }

@@ -4,8 +4,7 @@ use std::{
     sync::{atomic::AtomicUsize, Arc},
 };
 
-use abstractions::IUsizeAlias;
-use address::{IAddress, IAlignableAddress, PhysicalAddress, VirtualAddress, VirtualAddressRange};
+use address::{PhysAddr, VirtAddr, VirtAddrRange};
 use hermit_sync::SpinMutex;
 use mmu_abstractions::{GenericMappingFlags, MMUError, PageSize, PagingError, PagingResult, IMMU};
 
@@ -14,15 +13,15 @@ use crate::allocation::ITestFrameAllocator;
 pub struct TestMMU {
     alloc: Arc<SpinMutex<dyn ITestFrameAllocator>>,
     mappings: Vec<MappingRecord>,
-    mapped: SpinMutex<BTreeMap<VirtualAddress, MappedMemory>>,
+    mapped: SpinMutex<BTreeMap<VirtAddr, MappedMemory>>,
 }
 
 unsafe impl Send for TestMMU {}
 unsafe impl Sync for TestMMU {}
 
 struct MappingRecord {
-    phys: PhysicalAddress,
-    virt: VirtualAddress,
+    phys: PhysAddr,
+    virt: VirtAddr,
     flags: GenericMappingFlags,
     len: usize,
     from_test_env: bool,
@@ -39,16 +38,36 @@ impl TestMMU {
     }
 }
 
+macro_rules! paging_ensure_addr_valid {
+    ($addr:ident, $size:expr) => {{
+        if !$addr.is_aligned($size) {
+            return Err(PagingError::NotAligned);
+        }
+
+        Ok(())
+    }};
+}
+
+macro_rules! mmu_ensure_addr_valid {
+    ($addr:ident) => {{
+        if $addr.is_null() {
+            return Err(MMUError::InvalidAddress);
+        }
+
+        Ok(())
+    }};
+}
+
 impl IMMU for TestMMU {
     fn map_single(
         &mut self,
-        vaddr: VirtualAddress,
-        target: PhysicalAddress,
+        vaddr: VirtAddr,
+        target: PhysAddr,
         size: PageSize,
         flags: GenericMappingFlags,
     ) -> PagingResult<()> {
-        paging_ensure_addr_valid(vaddr)?;
-        paging_ensure_addr_valid(target)?;
+        paging_ensure_addr_valid!(vaddr, size.as_usize())?;
+        paging_ensure_addr_valid!(target, size.as_usize())?;
 
         // Check overlapping
         for mapping in &self.mappings {
@@ -71,12 +90,12 @@ impl IMMU for TestMMU {
 
     fn remap_single(
         &mut self,
-        vaddr: VirtualAddress,
-        new_target: PhysicalAddress,
+        vaddr: VirtAddr,
+        new_target: PhysAddr,
         flags: GenericMappingFlags,
     ) -> PagingResult<PageSize> {
-        paging_ensure_addr_valid(vaddr)?;
-        paging_ensure_addr_valid(new_target)?;
+        paging_ensure_addr_valid!(vaddr, constants::PAGE_SIZE)?;
+        paging_ensure_addr_valid!(new_target, constants::PAGE_SIZE)?;
 
         // Find and modify the mapping
         for mapping in self.mappings.iter_mut() {
@@ -90,7 +109,7 @@ impl IMMU for TestMMU {
         Err(PagingError::NotMapped)
     }
 
-    fn unmap_single(&mut self, vaddr: VirtualAddress) -> PagingResult<(PhysicalAddress, PageSize)> {
+    fn unmap_single(&mut self, vaddr: VirtAddr) -> PagingResult<(PhysAddr, PageSize)> {
         match self
             .mappings
             .iter()
@@ -110,10 +129,10 @@ impl IMMU for TestMMU {
 
     fn query_virtual(
         &self,
-        vaddr: VirtualAddress,
-    ) -> PagingResult<(PhysicalAddress, GenericMappingFlags, PageSize)> {
+        vaddr: VirtAddr,
+    ) -> PagingResult<(PhysAddr, GenericMappingFlags, PageSize)> {
         let mapping = self.query_mapping(vaddr).ok_or(PagingError::NotMapped)?;
-        let offset = (vaddr - mapping.virt).as_usize();
+        let offset = vaddr - mapping.virt;
 
         Ok((
             mapping.phys + offset,
@@ -124,16 +143,16 @@ impl IMMU for TestMMU {
 
     fn create_or_update_single(
         &mut self,
-        vaddr: VirtualAddress,
+        vaddr: VirtAddr,
         size: PageSize,
-        paddr: Option<PhysicalAddress>,
+        paddr: Option<PhysAddr>,
         flags: Option<GenericMappingFlags>,
     ) -> PagingResult<()> {
-        paging_ensure_addr_valid(vaddr)?;
+        paging_ensure_addr_valid!(vaddr, size.as_usize())?;
         paging_ensure_valid_size(size)?;
 
         if let Some(paddr) = paddr {
-            paging_ensure_addr_valid(paddr)?;
+            paging_ensure_addr_valid!(paddr, size.as_usize())?;
         }
 
         // Find and update the mapping
@@ -156,11 +175,11 @@ impl IMMU for TestMMU {
 
     fn inspect_framed_internal(
         &self,
-        vaddr: VirtualAddress,
+        vaddr: VirtAddr,
         len: usize,
         callback: &mut dyn FnMut(&[u8], usize) -> bool,
     ) -> Result<(), MMUError> {
-        mmu_ensure_addr_valid(vaddr)?;
+        mmu_ensure_addr_valid!(vaddr)?;
 
         let mut checking_vaddr = vaddr;
         let mut checking_offset = 0;
@@ -172,7 +191,7 @@ impl IMMU for TestMMU {
 
             mmu_ensure_permisssion(checking_vaddr, mapping.flags, false)?;
 
-            let offset = (checking_vaddr - mapping.virt).as_usize();
+            let offset = (checking_vaddr - mapping.virt) as usize;
             let mapping_len = mapping.len - offset;
             let len = mapping_len.min(len - checking_offset);
 
@@ -181,7 +200,7 @@ impl IMMU for TestMMU {
                 return Err(MMUError::AccessFault);
             }
 
-            let ptr = mapping.phys.as_usize() as *const u8;
+            let ptr = *mapping.phys as *const u8;
             let slice = unsafe { std::slice::from_raw_parts(ptr.add(offset), len) };
 
             if !callback(slice, checking_offset) {
@@ -197,11 +216,11 @@ impl IMMU for TestMMU {
 
     fn inspect_framed_mut_internal(
         &self,
-        vaddr: VirtualAddress,
+        vaddr: VirtAddr,
         len: usize,
         callback: &mut dyn FnMut(&mut [u8], usize) -> bool,
     ) -> Result<(), MMUError> {
-        mmu_ensure_addr_valid(vaddr)?;
+        mmu_ensure_addr_valid!(vaddr)?;
 
         let mut checking_vaddr = vaddr;
         let mut checking_offset = 0;
@@ -213,7 +232,7 @@ impl IMMU for TestMMU {
 
             mmu_ensure_permisssion(checking_vaddr, mapping.flags, true)?;
 
-            let offset = (checking_vaddr - mapping.virt).as_usize();
+            let offset = (checking_vaddr - mapping.virt) as usize;
             let mapping_len = mapping.len - offset;
             let len = mapping_len.min(len - checking_offset);
 
@@ -222,7 +241,7 @@ impl IMMU for TestMMU {
                 return Err(MMUError::AccessFault);
             }
 
-            let ptr = mapping.phys.as_usize() as *mut u8;
+            let ptr = *mapping.phys as *mut u8;
             let slice = unsafe { std::slice::from_raw_parts_mut(ptr.add(offset), len) };
 
             if !callback(slice, checking_offset) {
@@ -236,30 +255,24 @@ impl IMMU for TestMMU {
         Ok(())
     }
 
-    fn read_bytes(&self, vaddr: VirtualAddress, buf: &mut [u8]) -> Result<(), MMUError> {
+    fn read_bytes(&self, vaddr: VirtAddr, buf: &mut [u8]) -> Result<(), MMUError> {
         self.inspect_framed_internal(vaddr, buf.len(), &mut |src, offset| {
             buf[offset..offset + src.len()].copy_from_slice(src);
             true
         })
     }
 
-    fn write_bytes(&self, vaddr: VirtualAddress, buf: &[u8]) -> Result<(), MMUError> {
+    fn write_bytes(&self, vaddr: VirtAddr, buf: &[u8]) -> Result<(), MMUError> {
         self.inspect_framed_mut_internal(vaddr, buf.len(), &mut |dst, offset| {
             dst.copy_from_slice(&buf[offset..offset + dst.len()]);
             true
         })
     }
 
-    fn translate_phys(
-        &self,
-        paddr: PhysicalAddress,
-        len: usize,
-    ) -> Result<&'static mut [u8], MMUError> {
+    fn translate_phys(&self, paddr: PhysAddr, len: usize) -> Result<&'static mut [u8], MMUError> {
         for mapping in self.mappings.iter().filter(|m| m.from_test_env) {
             if paddr >= mapping.phys && paddr < mapping.phys + mapping.len {
-                return Ok(unsafe {
-                    std::slice::from_raw_parts_mut(paddr.as_usize() as *mut u8, len)
-                });
+                return Ok(unsafe { std::slice::from_raw_parts_mut(*paddr as *mut u8, len) });
             }
         }
 
@@ -279,7 +292,7 @@ impl IMMU for TestMMU {
     }
 
     #[cfg(not(target_os = "none"))]
-    fn register_internal(&mut self, vaddr: VirtualAddress, len: usize, mutable: bool) {
+    fn register_internal(&mut self, vaddr: VirtAddr, len: usize, mutable: bool) {
         let mut flags = GenericMappingFlags::User | GenericMappingFlags::Readable;
 
         if mutable {
@@ -287,7 +300,7 @@ impl IMMU for TestMMU {
         }
 
         self.mappings.push(MappingRecord {
-            phys: PhysicalAddress::from_usize(vaddr.as_usize()),
+            phys: PhysAddr::new(*vaddr),
             virt: vaddr,
             flags,
             len,
@@ -296,7 +309,7 @@ impl IMMU for TestMMU {
     }
 
     #[cfg(not(target_os = "none"))]
-    fn unregister_internal(&mut self, vaddr: VirtualAddress) {
+    fn unregister_internal(&mut self, vaddr: VirtAddr) {
         let mut i = 0;
 
         while i < self.mappings.len() {
@@ -308,18 +321,18 @@ impl IMMU for TestMMU {
         }
     }
 
-    fn map_buffer_internal(&self, vaddr: VirtualAddress, len: usize) -> Result<&'_ [u8], MMUError> {
+    fn map_buffer_internal(&self, vaddr: VirtAddr, len: usize) -> Result<&'_ [u8], MMUError> {
         let mem = MappedMemory::alloc(vaddr, len, false);
         let mut mapped = self.mapped.lock();
 
         if let Some((_, mapped)) = mapped.iter().find(|m| m.1.range().intersects(mem.range())) {
-            let expected_range = VirtualAddressRange::from_start_len(vaddr, len);
+            let expected_range = VirtAddrRange::from_start_len(vaddr, len);
 
-            if !mapped.range().contains_range(expected_range) {
+            if !mapped.range().intersects(expected_range) {
                 return Err(MMUError::Borrowed);
             }
 
-            let offset = vaddr.diff(mapped.range().start()) as usize;
+            let offset = (vaddr - mapped.range().start()) as usize;
 
             mapped.add_ref();
             return Ok(unsafe { core::slice::from_raw_parts(mapped.ptr.add(offset), len) });
@@ -335,7 +348,7 @@ impl IMMU for TestMMU {
 
     fn map_buffer_mut_internal(
         &self,
-        vaddr: VirtualAddress,
+        vaddr: VirtAddr,
         len: usize,
         _force_mut: bool,
     ) -> Result<&'_ mut [u8], MMUError> {
@@ -343,14 +356,14 @@ impl IMMU for TestMMU {
         let mut mapped = self.mapped.lock();
 
         if let Some((_, mapped)) = mapped.iter().find(|m| m.1.range().intersects(mem.range())) {
-            let expected_range = VirtualAddressRange::from_start_len(vaddr, len);
+            let expected_range = VirtAddrRange::from_start_len(vaddr, len);
 
-            if !mapped.mutable || !mapped.range().contains_range(expected_range) {
+            if !mapped.mutable || !mapped.range().intersects(expected_range) {
                 // FIXME: is this correct?
                 return Err(MMUError::Borrowed);
             }
 
-            let offset = vaddr.diff(mapped.range().start()) as usize;
+            let offset = (vaddr - mapped.range().start()) as usize;
             mapped.add_ref();
 
             return Ok(unsafe { core::slice::from_raw_parts_mut(mapped.ptr.add(offset), len) });
@@ -366,10 +379,11 @@ impl IMMU for TestMMU {
         Ok(slice)
     }
 
-    fn unmap_buffer(&self, vaddr: VirtualAddress) {
+    fn unmap_buffer(&self, vaddr: VirtAddr) {
         let mut locked = self.mapped.lock();
 
-        if let Some((_, mapped)) = locked.iter().find(|(_, m)| m.range().contains(vaddr)) {
+        // FIXME: should determine key by memory slice
+        if let Some((_, mapped)) = locked.iter().find(|(_, m)| m.range().contains_addr(vaddr)) {
             if mapped.release() {
                 let key = mapped.vaddr;
                 let mapped = locked.remove(&key).unwrap();
@@ -387,7 +401,7 @@ impl IMMU for TestMMU {
     fn map_cross_internal<'a>(
         &'a mut self,
         source: &'a dyn IMMU,
-        vaddr: VirtualAddress,
+        vaddr: VirtAddr,
         len: usize,
     ) -> Result<&'a [u8], MMUError> {
         let source = source.downcast_ref::<TestMMU>().unwrap();
@@ -399,7 +413,7 @@ impl IMMU for TestMMU {
     fn map_cross_mut_internal<'a>(
         &'a mut self,
         source: &'a dyn IMMU,
-        vaddr: VirtualAddress,
+        vaddr: VirtAddr,
         len: usize,
     ) -> Result<&'a mut [u8], MMUError> {
         let source = source.downcast_ref::<TestMMU>().unwrap();
@@ -408,7 +422,7 @@ impl IMMU for TestMMU {
         source.map_buffer_mut_internal(vaddr, len, false)
     }
 
-    fn unmap_cross(&mut self, source: &dyn IMMU, vaddr: VirtualAddress) {
+    fn unmap_cross(&mut self, source: &dyn IMMU, vaddr: VirtAddr) {
         let source = source.downcast_ref::<TestMMU>().unwrap();
 
         source.unmap_buffer(vaddr);
@@ -416,7 +430,7 @@ impl IMMU for TestMMU {
 }
 
 impl TestMMU {
-    fn query_mapping(&self, vaddr: VirtualAddress) -> Option<&MappingRecord> {
+    fn query_mapping(&self, vaddr: VirtAddr) -> Option<&MappingRecord> {
         self.mappings
             .iter()
             .find(|&mapping| mapping.virt <= vaddr && vaddr < mapping.virt + mapping.len)
@@ -434,24 +448,8 @@ fn paging_ensure_valid_size(size: PageSize) -> PagingResult<()> {
     Ok(())
 }
 
-fn paging_ensure_addr_valid<T: IAlignableAddress>(addr: T) -> PagingResult<()> {
-    if !addr.is_page_aligned() {
-        return Err(PagingError::NotAligned);
-    }
-
-    Ok(())
-}
-
-fn mmu_ensure_addr_valid<T: IAlignableAddress>(addr: T) -> Result<(), MMUError> {
-    if addr.is_null() {
-        return Err(MMUError::InvalidAddress);
-    }
-
-    Ok(())
-}
-
 fn mmu_ensure_permisssion(
-    vaddr: VirtualAddress,
+    vaddr: VirtAddr,
     flags: GenericMappingFlags,
     mutable: bool,
 ) -> Result<(), MMUError> {
@@ -471,7 +469,7 @@ fn mmu_ensure_permisssion(
 }
 
 struct MappedMemory {
-    vaddr: VirtualAddress,
+    vaddr: VirtAddr,
     ptr: *mut u8,
     layout: Layout,
     mutable: bool,
@@ -479,7 +477,7 @@ struct MappedMemory {
 }
 
 impl MappedMemory {
-    fn alloc(vaddr: VirtualAddress, len: usize, mutable: bool) -> Self {
+    fn alloc(vaddr: VirtAddr, len: usize, mutable: bool) -> Self {
         let layout = Layout::from_size_align(len, constants::PAGE_SIZE).unwrap();
 
         let ptr = unsafe { std::alloc::alloc(layout) };
@@ -493,8 +491,8 @@ impl MappedMemory {
         }
     }
 
-    fn range(&self) -> VirtualAddressRange {
-        VirtualAddressRange::from_start_len(self.vaddr, self.layout.size())
+    fn range(&self) -> VirtAddrRange {
+        VirtAddrRange::from_start_len(self.vaddr, self.layout.size())
     }
 
     fn slice_mut(&self) -> &'static mut [u8] {

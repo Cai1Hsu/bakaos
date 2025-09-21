@@ -7,8 +7,7 @@
 
 use core::{ops::Deref, ptr::addr_of};
 
-use abstractions::IUsizeAlias;
-use address::{PhysicalAddress, VirtualAddress, VirtualAddressRange};
+use address::{PhysAddr, VirtAddr, VirtAddrRange};
 use alloc::sync::Arc;
 use allocation::FrameAllocator;
 use hermit_sync::SpinMutex;
@@ -56,8 +55,8 @@ extern "C" fn __kernel_start_main() -> ! {
     #[link_section = ".bss.heap"]
     static KERNEL_HEAP_START: [u8; 0] = [0; 0];
 
-    global_heap::init(VirtualAddressRange::from_start_len(
-        VirtualAddress::from_ptr(addr_of!(KERNEL_HEAP_START)),
+    global_heap::init(VirtAddrRange::from_start_len(
+        VirtAddr::from(addr_of!(KERNEL_HEAP_START)),
         0x0080_0000, // refer to the linker script
     ));
 
@@ -65,8 +64,8 @@ extern "C" fn __kernel_start_main() -> ! {
     let allocator_top = allocator_bottom + 0x400000; // 4 MB
 
     let allocator = Arc::new(SpinMutex::new(FrameAllocator::new(
-        PhysicalAddress::from_usize(allocator_top),
-        PhysicalAddress::from_usize(allocator_bottom),
+        PhysAddr::new(allocator_top),
+        PhysAddr::new(allocator_bottom),
     )));
 
     let serial = KernelSerial::new();

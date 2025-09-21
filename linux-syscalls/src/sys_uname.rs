@@ -1,9 +1,9 @@
 use crate::{SyscallContext, SyscallResult};
-use address::VirtualAddress;
+use address::VirtAddr;
 use constants::ErrNo;
 
 impl SyscallContext {
-    pub fn sys_uname(&self, vaddr: VirtualAddress) -> SyscallResult {
+    pub fn sys_uname(&self, vaddr: VirtAddr) -> SyscallResult {
         self.sys_uname_internal(vaddr, Self::release_utsname())
     }
 
@@ -31,7 +31,7 @@ impl SyscallContext {
         )
     }
 
-    fn sys_uname_internal(&self, vaddr: VirtualAddress, utsname: UtsName) -> SyscallResult {
+    fn sys_uname_internal(&self, vaddr: VirtAddr, utsname: UtsName) -> SyscallResult {
         self.task
             .process()
             .mmu()
@@ -120,7 +120,6 @@ impl UtsName {
 mod tests {
     use std::sync::Arc;
 
-    use abstractions::IUsizeAlias;
     use hermit_sync::SpinMutex;
     use memory_space::MemorySpace;
     use mmu_abstractions::IMMU;
@@ -148,7 +147,7 @@ mod tests {
     #[test]
     fn test_uname_fields() {
         let (context, _, utsname) = setup_test();
-        let result = context.sys_uname(VirtualAddress::from_ref(utsname.as_ref()));
+        let result = context.sys_uname(VirtAddr::from(utsname.as_ref()));
         assert_eq!(result, Ok(0));
 
         assert_eq!(utsname.sysname(), "Linux");
@@ -177,14 +176,14 @@ mod tests {
 
         mmu.lock().register(&utsname, false);
 
-        let result = context.sys_uname(VirtualAddress::from_ref(&utsname));
+        let result = context.sys_uname(VirtAddr::from(&utsname));
         assert_eq!(result, Err(ErrNo::BadAddress));
     }
 
     #[test]
     fn test_invalid_buffer() {
         let (context, _, _) = setup_test();
-        let invalid_addr = VirtualAddress::from_usize(0xdeadbeef);
+        let invalid_addr = VirtAddr::new(0xdeadbeef);
         let result = context.sys_uname(invalid_addr);
         assert_eq!(result, Err(ErrNo::BadAddress));
     }
