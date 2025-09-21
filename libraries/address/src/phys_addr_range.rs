@@ -48,7 +48,7 @@ mod phys_range_tests {
         let device_range = PhysAddrRange::new(PhysAddr::new(0x10000000), PhysAddr::new(0x20000000));
 
         // They shouldn't overlap
-        assert!(!dram_range.overlaps(device_range));
+        assert!(!dram_range.intersects(device_range));
 
         // Test memory region size calculations
         assert_eq!(dram_range.len(), 0x80000000); // 2GB

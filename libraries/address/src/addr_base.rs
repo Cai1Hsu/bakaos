@@ -187,6 +187,15 @@ macro_rules! impl_addr {
             }
         }
 
+        impl const ::core::ops::Add<i32> for $type {
+            type Output = Self;
+
+            #[inline(always)]
+            fn add(self, rhs: i32) -> Self::Output {
+                self.add(rhs as isize)
+            }
+        }
+
         impl const ::core::ops::Sub<usize> for $type {
             type Output = Self;
 
@@ -202,6 +211,15 @@ macro_rules! impl_addr {
             #[inline(always)]
             fn sub(self, rhs: isize) -> Self::Output {
                 Self((self.0 as isize - rhs) as usize)
+            }
+        }
+
+        impl const ::core::ops::Sub<i32> for $type {
+            type Output = Self;
+
+            #[inline(always)]
+            fn sub(self, rhs: i32) -> Self::Output {
+                self.sub(rhs as isize)
             }
         }
 
@@ -237,6 +255,13 @@ macro_rules! impl_addr {
             }
         }
 
+        impl ::core::ops::AddAssign<i32> for $type {
+            #[inline(always)]
+            fn add_assign(&mut self, rhs: i32) {
+                self.add_assign(rhs as isize)
+            }
+        }
+
         impl ::core::ops::SubAssign<usize> for $type {
             #[inline(always)]
             fn sub_assign(&mut self, rhs: usize) {
@@ -248,6 +273,13 @@ macro_rules! impl_addr {
             #[inline(always)]
             fn sub_assign(&mut self, rhs: isize) {
                 self.0 = (self.0 as isize - rhs) as usize;
+            }
+        }
+
+        impl ::core::ops::SubAssign<i32> for $type {
+            #[inline(always)]
+            fn sub_assign(&mut self, rhs: i32) {
+                self.sub_assign(rhs as isize)
             }
         }
 

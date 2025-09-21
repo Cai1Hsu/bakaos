@@ -121,17 +121,17 @@ macro_rules! impl_range {
                 *range.start >= *self.start && *range.end <= *self.end
             }
 
-            /// Checks if this range overlaps with another range.
+            /// Checks if this range intersects with another range.
             ///
             /// # Examples
             /// ```
             /// # use address::{PhysAddr, PhysAddrRange};
             /// let range1 = PhysAddrRange::new(PhysAddr::new(0x1000), PhysAddr::new(0x2000));
             /// let range2 = PhysAddrRange::new(PhysAddr::new(0x1500), PhysAddr::new(0x2500));
-            /// assert!(range1.overlaps(range2));
+            /// assert!(range1.intersects(range2));
             /// ```
             #[inline(always)]
-            pub const fn overlaps(self, other: Self) -> bool {
+            pub const fn intersects(self, other: Self) -> bool {
                 *self.start < *other.end && *other.start < *self.end
             }
 
@@ -154,7 +154,7 @@ macro_rules! impl_range {
             /// Ranges can be merged if they overlap or are adjacent.
             #[inline(always)]
             pub const fn can_merge(self, other: Self) -> bool {
-                self.overlaps(other) || self.is_adjacent(other)
+                self.intersects(other) || self.is_adjacent(other)
             }
 
             /// Merges this range with another range if possible.
@@ -192,7 +192,7 @@ macro_rules! impl_range {
             /// assert_eq!(intersection.end(), PhysAddr::new(0x2000));
             /// ```
             pub const fn intersection(self, other: Self) -> Option<Self> {
-                if self.overlaps(other) {
+                if self.intersects(other) {
                     let start = if *self.start > *other.start { self.start } else { other.start };
                     let end = if *self.end < *other.end { self.end } else { other.end };
                     Some(Self::new(start, end))
@@ -416,10 +416,10 @@ macro_rules! impl_range {
                 let range2 = $range_type::new($addr_type::new(0x1500), $addr_type::new(0x2500));
                 let range3 = $range_type::new($addr_type::new(0x3000), $addr_type::new(0x4000));
 
-                assert!(range1.overlaps(range2));
-                assert!(range2.overlaps(range1));
-                assert!(!range1.overlaps(range3));
-                assert!(!range3.overlaps(range1));
+                assert!(range1.intersects(range2));
+                assert!(range2.intersects(range1));
+                assert!(!range1.intersects(range3));
+                assert!(!range3.intersects(range1));
             }
 
             #[test]
