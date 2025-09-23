@@ -1,15 +1,15 @@
+#![coverage(off)]
 #![feature(coverage_attribute)]
 
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use proc_macro_crate::{crate_name, FoundCrate};
 use quote::{format_ident, quote};
-use syn::{parse_macro_input, Error, ItemFn};
+use syn::{parse_macro_input, spanned::Spanned, Attribute, Error, Expr, Item, ItemFn, ItemMod};
 
 /// Attribute macro #[rust_main]
 /// Generates a function named `main` that calls the user's original `main` function.
 /// Allowing the same entry for both baremetal and std executables.
-#[coverage(off)]
 #[proc_macro_attribute]
 pub fn rust_main(_attr: TokenStream, item: TokenStream) -> TokenStream {
     // parse the annotated item as a function
@@ -112,4 +112,171 @@ pub fn rust_main(_attr: TokenStream, item: TokenStream) -> TokenStream {
     };
 
     TokenStream::from(expanded)
+}
+
+#[proc_macro_attribute]
+pub fn ktest(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(item as Item);
+
+    match input {
+        Item::Fn(func) => expand_fn(func).into(),
+        Item::Mod(module) => expand_mod(module).into(),
+        other => syn::Error::new_spanned(other, "#[ktest] can only be applied to fn or mod")
+            .to_compile_error()
+            .into(),
+    }
+}
+
+enum ExpectationSymbol {
+    Success,
+    ShouldPanic,
+    ShouldPanicWithMessage(String),
+}
+
+fn parse_test_expectation(attrs: &[Attribute]) -> syn::Result<ExpectationSymbol> {
+    for attr in attrs {
+        if attr.path().is_ident("should_panic") {
+            // Parse the attribute tokens to extract the expectation
+            match &attr.meta {
+                // Simple #[should_panic]
+                syn::Meta::Path(_) => {
+                    return Ok(ExpectationSymbol::ShouldPanic);
+                }
+                // #[should_panic = "message"]
+                syn::Meta::NameValue(nv) => {
+                    if let Expr::Lit(syn::ExprLit {
+                        lit: syn::Lit::Str(lit_str),
+                        ..
+                    }) = &nv.value
+                    {
+                        return Ok(ExpectationSymbol::ShouldPanicWithMessage(lit_str.value()));
+                    } else {
+                        return Err(syn::Error::new_spanned(
+                            &nv.value,
+                            "expected value must be a string",
+                        ));
+                    }
+                }
+                // #[should_panic(expected = "message")]
+                syn::Meta::List(ml) => {
+                    let mut message = None;
+
+                    ml.parse_nested_meta(|l| {
+                        if l.path.is_ident("expected") {
+                            l.value()?.parse::<syn::LitStr>().map(|s| {
+                                message = Some(s.value());
+                            })
+                        } else {
+                            Err(l.error("expected `expected`"))
+                        }
+                    })?;
+
+                    if let Some(msg) = message {
+                        return Ok(ExpectationSymbol::ShouldPanicWithMessage(msg));
+                    } else {
+                        return Err(syn::Error::new_spanned(ml, "expected `message` argument"));
+                    }
+                }
+            }
+        }
+    }
+    Ok(ExpectationSymbol::Success)
+}
+
+fn expand_fn(func: ItemFn) -> proc_macro2::TokenStream {
+    let span = func.span();
+
+    let attrs = func.attrs;
+    let vis = func.vis;
+    let sig = func.sig;
+    let block = func.block;
+    let ident = sig.ident;
+
+    let test_desc = format_ident!("test_desc_{}", ident,);
+
+    let (start_line, start_col) = (span.start().line, span.start().column);
+    let (end_line, end_col) = (span.end().line, span.end().column);
+
+    // Resolve the `runtime` crate path (handles dependency renames).
+    let runtime_path: syn::Path = match crate_name("runtime") {
+        Ok(FoundCrate::Itself) => syn::parse_quote!(crate),
+        Ok(FoundCrate::Name(name)) => {
+            let ident = syn::Ident::new(&name, Span::call_site());
+            syn::parse_quote!(#ident)
+        }
+        Err(_) => syn::parse_quote!(runtime), // fallback
+    };
+
+    let expectation = match parse_test_expectation(&attrs) {
+        Ok(opt) => opt,
+        Err(e) => return e.to_compile_error(),
+    };
+
+    let expect = match expectation {
+        ExpectationSymbol::Success => quote! { #runtime_path::test::ResultExpectation::Success },
+        ExpectationSymbol::ShouldPanic => {
+            quote! { #runtime_path::test::ResultExpectation::ShouldPanic }
+        }
+        ExpectationSymbol::ShouldPanicWithMessage(msg) => {
+            let msg = msg.as_str();
+            quote! { #runtime_path::test::ResultExpectation::ShouldPanicWithMessage(#msg) }
+        }
+    };
+
+    quote! {
+        #[doc(hidden)]
+        const _: () = {
+            #[used]
+            #[doc(hidden)]
+            #[cfg(target_os = "none")]
+            #[allow(non_upper_case_globals)]
+            #[cfg_attr(target_os = "none", link_section = ".ktest_array")]
+            static #test_desc: #runtime_path::test::TestDesc = #runtime_path::test::TestDesc {
+                name: ::core::prelude::v1::stringify!(#ident),
+                module_path: ::core::prelude::v1::module_path!(),
+                package: ::core::prelude::v1::env!("CARGO_PKG_NAME"),
+                source_file: ::core::prelude::v1::file!(),
+                expect: #expect,
+                start: #runtime_path::test::SourcePosition {
+                    line: #start_line,
+                    column: #start_col,
+                },
+                end: #runtime_path::test::SourcePosition {
+                    line: #end_line,
+                    column: #end_col,
+                },
+                func: #ident,
+            };
+        };
+
+        #[cfg_attr(not(target_os = "none"), ::core::prelude::v1::test)]
+        #(#attrs)*
+        #vis fn #ident() #block
+    }
+}
+
+fn expand_mod(module: ItemMod) -> proc_macro2::TokenStream {
+    let attrs = module.attrs;
+    let vis = module.vis;
+    let ident = module.ident;
+    let content = module.content;
+
+    let attrs = quote! {
+        #[cfg(any(test, ktest))]
+        #(#attrs)*
+    };
+
+    if let Some((_, items)) = content {
+        quote! {
+            #attrs
+            #vis mod #ident {
+                #(#items)*
+            }
+        }
+    } else {
+        quote! {
+            #attrs
+            #vis mod #ident;
+        }
+    }
 }

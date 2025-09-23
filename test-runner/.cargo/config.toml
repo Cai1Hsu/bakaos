@@ -1,0 +1,6 @@
+[build]
+rustflags = [
+    "--cfg", "ktest",
+    "-C", "force-unwind-tables=yes",
+    "-C", "panic=unwind",
+]

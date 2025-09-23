@@ -30,11 +30,10 @@ _start_high:
     xor fp, fp, fp
 
     la sp, __stack_top
-    li t0, VIRT_ADDR_OFFSET
-    add sp, t0, sp
 
     j rust_boot_main
 
+// TODO: the pt is in .text section
 .balign 4096
 boot_pt:
     .zero 2 * 8

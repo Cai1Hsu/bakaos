@@ -26,3 +26,14 @@ run: build
 		-m 1G \
 		-kernel kernel-$(ARCH).bin
 
+build-test:
+	cd test-runner && cargo build --target $(TARGET)
+
+test: build-test
+	@$(QEMU) \
+		-machine virt \
+		-nographic \
+		-no-reboot \
+		-smp 1 \
+		-m 1G \
+		-kernel test-runner/target/$(TARGET)/debug/test-runner

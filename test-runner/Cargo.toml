@@ -1,0 +1,18 @@
+[package]
+name = "test-runner"
+version = "0.1.0"
+edition = "2024"
+
+[workspace]
+
+[build-dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[target.'cfg(target_os = "none")'.dependencies]
+buddy_system_allocator = { git = "https://github.com/neuq-rcore/buddy_system_allocator" }
+unwinding = { version = "0.2.8", default-features = false, features = ["fde-static", "hide-trace", "panic", "personality", "unwinder"] } 
+
+[dependencies]
+runtime = { path = "../libraries/runtime", features = ["binary_crate"] }
+template = { path = "../libraries/template" }
