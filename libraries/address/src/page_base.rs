@@ -350,6 +350,8 @@ macro_rules! impl_page {
             /// ```
             #[inline(always)]
             pub const fn page_num(&self) -> usize {
+                debug_assert!(self.size() != 0);
+
                 *self.addr / self.size()
             }
 
@@ -372,11 +374,11 @@ macro_rules! impl_page {
             /// assert_eq!(page_1.diff_page_count(page_2), 1);
             /// ```
             #[inline(always)]
-            pub const fn diff_page_count(&self, other: Self) -> usize {
+            pub const fn diff_page_count(&self, other: Self) -> isize {
                 debug_assert!(self.size() != 0);
                 debug_assert!(self.size() == other.size());
 
-                (*other.addr - *self.addr) / self.size()
+                (*self.addr as isize - *other.addr as isize) / (self.size() as isize)
             }
         }
 
@@ -892,6 +894,29 @@ macro_rules! impl_page {
                 let page_3k = $page_type::new_custom($addr_type::new(0x3000), size_3k);
                 assert!(page_3k.is_some());
                 assert_eq!(page_3k.unwrap().size(), size_3k);
+            }
+
+            #[test]
+            fn test_page_num_success() {
+                let page_1 = $page_type::new_4k($addr_type::new(0x3000)).unwrap();
+                assert_eq!(page_1.page_num(), 0x3000 / $page_type::SIZE_4K);
+
+                let page_2 = $page_type::new_4k($addr_type::new(0x600000)).unwrap();
+                assert_eq!(page_2.page_num(), 0x600000 / $page_type::SIZE_4K);
+
+                let diff = page_2.diff_page_count(page_1);
+                assert_eq!(diff, (0x600000 - 0x3000) / $page_type::SIZE_4K as isize);
+            }
+
+            #[test]
+            #[should_panic]
+            #[cfg(debug_assertions)]
+            fn test_diff_page_count_panic_if_size_mismatch() {
+                let page_4k = $page_type::new_4k($addr_type::new(0x1000)).unwrap();
+                let page_2m = $page_type::new_2m($addr_type::new(0x200000)).unwrap();
+
+                // This should panic in debug mode due to size mismatch
+                let _ = page_4k.diff_page_count(page_2m);
             }
         }
     };

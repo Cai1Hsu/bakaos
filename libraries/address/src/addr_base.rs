@@ -472,12 +472,16 @@ macro_rules! impl_addr {
                 assert_eq!(addr + 0x100usize, $type::new(0x1100));
                 assert_eq!(addr + 0x100isize, $type::new(0x1100));
                 assert_eq!(addr + (-0x100isize), $type::new(0xf00));
+                assert_eq!(addr + 0x100i32, $type::new(0x1100));
+                assert_eq!(addr + (-0x100i32), $type::new(0xf00));
                 assert_eq!(addr + $type::new(0x500), $type::new(0x1500));
 
                 // Test subtraction
                 assert_eq!(addr - 0x100usize, $type::new(0xf00));
                 assert_eq!(addr - 0x100isize, $type::new(0xf00));
                 assert_eq!(addr - (-0x100isize), $type::new(0x1100));
+                assert_eq!(addr - 0x100i32, $type::new(0xf00));
+                assert_eq!(addr - (-0x100i32), $type::new(0x1100));
 
                 // Test address difference
                 let addr2 = $type::new(0x2000);
@@ -503,6 +507,12 @@ macro_rules! impl_addr {
 
                 addr -= (-0x100isize);
                 assert_eq!(addr, $type::new(0x1100));
+
+                addr += 0x100; // i32
+                assert_eq!(addr, $type::new(0x1200));
+
+                addr -= 0x200;
+                assert_eq!(addr, $type::new(0x1000));
             }
 
             #[test]

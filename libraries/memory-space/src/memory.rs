@@ -158,7 +158,7 @@ impl MemorySpace {
             return Ok(());
         }
 
-        let increased_range = VirtPageRange::new(old_end_vpn, page_count);
+        let increased_range = VirtPageRange::new(old_end_vpn, page_count as usize);
 
         for vpn in increased_range.iter() {
             let frame = self.allocator.lock().alloc_frame().unwrap();
