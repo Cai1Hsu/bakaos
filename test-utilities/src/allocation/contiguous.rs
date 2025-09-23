@@ -49,7 +49,7 @@ impl TestFrameAllocator {
 
 impl ITestFrameAllocator for TestFrameAllocator {
     fn check_paddr(&self, paddr: PhysAddr, len: usize) -> bool {
-        self.inner.bottom() <= paddr && paddr + len <= self.inner.top()
+        self.inner.bottom().addr() <= paddr && paddr + len < self.inner.top().addr()
     }
 
     fn linear_map(&self, paddr: PhysAddr) -> Option<*mut u8> {

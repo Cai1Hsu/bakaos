@@ -29,12 +29,16 @@ impl FrameAllocator {
         }
     }
 
-    pub fn top(&self) -> PhysAddr {
-        self.top
+    pub fn top(&self) -> PhysPage {
+        PhysPage::new_4k(self.top).unwrap()
     }
 
-    pub fn bottom(&self) -> PhysAddr {
-        self.bottom
+    pub fn bottom(&self) -> PhysPage {
+        PhysPage::new_4k(self.bottom).unwrap()
+    }
+
+    pub fn current(&self) -> PhysPage {
+        PhysPage::new_4k(self.current).unwrap()
     }
 }
 
@@ -55,7 +59,7 @@ impl IFrameAllocator for FrameAllocator {
     fn alloc_frames(&mut self, count: usize) -> Option<Vec<FrameDesc>> {
         let mut frames = Vec::with_capacity(count);
 
-        let avaliable = self.recycled.len() + (*self.top - *self.bottom) / (constants::PAGE_SIZE);
+        let avaliable = self.recycled.len() + self.top().diff_page_count(self.current()) as usize;
 
         match count {
             count if count <= avaliable => {
@@ -89,7 +93,7 @@ impl IFrameAllocator for FrameAllocator {
         // try gc self.current before push to recycled
         // Check if the recycled or ppn can be contiguous
         match self.recycled.last() {
-            Some(last) if *last + 1usize == self.current => {
+            Some(last) if *last + constants::PAGE_SIZE == self.current => {
                 let mut new_current = self.current;
 
                 loop {
