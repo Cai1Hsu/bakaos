@@ -1,5 +1,4 @@
-use abstractions::IUsizeAlias;
-use address::VirtualAddress;
+use address::VirtAddr;
 use constants::ErrNo;
 use linux_loader::auxv::AuxVecValues;
 use linux_loader::{IExecSource, LinuxLoader, ProcessContext, RawMemorySpace};
@@ -12,9 +11,9 @@ use crate::{SyscallContext, SyscallResult};
 impl SyscallContext {
     pub fn sys_execve(
         &self,
-        _pathname: VirtualAddress,
-        _argv: VirtualAddress,
-        _envp: VirtualAddress,
+        _pathname: VirtAddr,
+        _argv: VirtAddr,
+        _envp: VirtAddr,
     ) -> SyscallResult {
         todo!()
     }
@@ -88,11 +87,11 @@ impl SyscallContext {
         process.execve(loader.memory_space, calling_thread);
 
         let trap_ctx = TaskTrapContext::new(
-            loader.entry_pc.as_usize(),
-            loader.stack_top.as_usize(),
+            *loader.entry_pc,
+            *loader.stack_top,
             loader.ctx.argv.len(),
-            loader.argv_base.as_usize(),
-            loader.envp_base.as_usize(),
+            *loader.argv_base,
+            *loader.envp_base,
         );
 
         self.task.trap_context_mut().copy_from(&trap_ctx);

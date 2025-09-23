@@ -1,11 +1,10 @@
-use abstractions::IUsizeAlias;
-use address::{IAddressBase, VirtualAddress};
+use address::VirtAddr;
 use task_abstractions::flags::TaskCloneFlags;
 
 use crate::{SyscallContext, SyscallResult};
 
 impl SyscallContext {
-    pub fn sys_clone(&self, flags: TaskCloneFlags, stack_top: VirtualAddress) -> SyscallResult {
+    pub fn sys_clone(&self, flags: TaskCloneFlags, stack_top: VirtAddr) -> SyscallResult {
         let forked = match flags.contains(TaskCloneFlags::THREAD) {
             true => self.task.fork_thread(),
             false => self.task.fork_process(),
@@ -14,9 +13,7 @@ impl SyscallContext {
         let tid = forked.tid();
 
         if !stack_top.is_null() {
-            forked
-                .trap_context_mut()
-                .set_stack_top(stack_top.as_usize());
+            forked.trap_context_mut().set_stack_top(*stack_top);
         }
 
         let process = self.task.linux_process();
@@ -51,7 +48,7 @@ mod tests {
     fn test_thread_forked() {
         let (_, ctx) = setup_env();
 
-        let ret = ctx.sys_clone(TaskCloneFlags::THREAD, VirtualAddress::null());
+        let ret = ctx.sys_clone(TaskCloneFlags::THREAD, VirtAddr::null);
 
         assert!(ret.is_ok());
 

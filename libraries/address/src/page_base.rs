@@ -5,7 +5,8 @@ macro_rules! impl_page {
         #[derive(Clone, Copy, Eq)]
         pub struct $page_type {
             addr: $addr_type,
-            size: usize, // TODO: should we use a enum for common sizes?
+            size: usize,// TODO: use NonZeroUsize
+                        // TODO: should we use a enum for common sizes?
         }
 
         impl $page_type {
@@ -42,7 +43,7 @@ macro_rules! impl_page {
             ///
             /// # Examples
             /// ```rust
-            /// # use address_v2::{PhysPage, PhysAddr};
+            /// # use address::{PhysPage, PhysAddr};
             /// let page = PhysPage::new_4k(PhysAddr::new(0x1000));
             /// assert!(page.is_some());
             ///
@@ -52,6 +53,20 @@ macro_rules! impl_page {
             #[inline(always)]
             pub const fn new_4k(addr: $addr_type) -> Option<Self> {
                 Self::new_custom(addr, Self::SIZE_4K)
+            }
+
+            /// Creates a new 4KB page at the specified address, aligning the address down.
+            ///
+            /// The address will be rounded down to the nearest multiple of `Self::SIZE_4K`.
+            ///
+            /// # Parameters
+            /// - `addr`: The starting address of the page, will be rounded down to the nearest multiple of `Self::SIZE_4K`
+            ///
+            /// # Returns
+            /// A new page object with the specified size, aligned down to the nearest multiple of `Self::SIZE_4K`
+            #[inline(always)]
+            pub const fn new_aligned_4k(addr: $addr_type) -> Self {
+                Self::new_custom_aligned(addr, Self::SIZE_4K)
             }
 
             /// Creates a new 2MB page at the specified address.
@@ -67,7 +82,7 @@ macro_rules! impl_page {
             ///
             /// # Examples
             /// ```rust
-            /// # use address_v2::{PhysPage, PhysAddr};
+            /// # use address::{PhysPage, PhysAddr};
             /// let page = PhysPage::new_2m(PhysAddr::new(0x200000));
             /// assert!(page.is_some());
             ///
@@ -77,7 +92,20 @@ macro_rules! impl_page {
             #[inline(always)]
             pub const fn new_2m(addr: $addr_type) -> Option<Self> {
                 Self::new_custom(addr, Self::SIZE_2M)
+            }
 
+            /// Creates a new 2MB page at the specified address, aligning the address down.
+            ///
+            /// The address will be rounded down to the nearest multiple of `Self::SIZE_2M`.
+            ///
+            /// # Parameters
+            /// - `addr`: The starting address of the page, will be rounded down to the nearest multiple of `Self::SIZE_2M`
+            ///
+            /// # Returns
+            /// A new page object with the specified size, aligned down to the nearest multiple of `Self::SIZE_2M`
+            #[inline(always)]
+            pub const fn new_aligned_2m(addr: $addr_type) -> Self {
+                Self::new_custom_aligned(addr, Self::SIZE_2M)
             }
 
             /// Creates a new 1GB page at the specified address.
@@ -93,7 +121,7 @@ macro_rules! impl_page {
             ///
             /// # Examples
             /// ```rust
-            /// # use address_v2::{PhysPage, PhysAddr};
+            /// # use address::{PhysPage, PhysAddr};
             /// let page = PhysPage::new_1g(PhysAddr::new(0x40000000));
             /// assert!(page.is_some());
             ///
@@ -104,6 +132,20 @@ macro_rules! impl_page {
             pub const fn new_1g(addr: $addr_type) -> Option<Self> {
                 Self::new_custom(addr, Self::SIZE_1G)
 
+            }
+
+            /// Creates a new 1GB page at the specified address, aligning the address down.
+            ///
+            /// The address will be rounded down to the nearest multiple of `Self::SIZE_1G`.
+            ///
+            /// # Parameters
+            /// - `addr`: The starting address of the page, will be rounded down to the nearest multiple of `Self::SIZE_1G`
+            ///
+            /// # Returns
+            /// A new page object with the specified size, aligned down to the nearest multiple of `Self::SIZE_1G`
+            #[inline(always)]
+            pub const fn new_aligned_1g(addr: $addr_type) -> Self {
+                Self::new_custom_aligned(addr, Self::SIZE_1G)
             }
 
             /// Creates a new page with a custom size at the specified address.
@@ -121,7 +163,7 @@ macro_rules! impl_page {
             ///
             /// # Examples
             /// ```rust
-            /// # use address_v2::{PhysPage, PhysAddr};
+            /// # use address::{PhysPage, PhysAddr};
             /// // Create an 8KB page
             /// let page = PhysPage::new_custom(PhysAddr::new(0x2000), 0x2000);
             /// assert!(page.is_some());
@@ -143,6 +185,36 @@ macro_rules! impl_page {
                 }
             }
 
+            /// Creates a new page with a custom size at the specified address, aligning the address down.
+            ///
+            /// The address will be rounded down to the nearest multiple of `size`.
+            ///
+            /// # Parameters
+            /// - `addr`: The starting address of the page, will be rounded down to the nearest multiple of `size`
+            /// - `size`: The size of the page in bytes, must be non-zero
+            ///
+            /// # Returns
+            /// A new page object with the specified size, aligned down to the nearest multiple of `size`
+            ///
+            /// # Panics
+            /// Panics if `size` is zero
+            ///
+            /// # Examples
+            /// ```
+            /// # use address::{PhysPage, PhysAddr};
+            /// let page = PhysPage::new_custom_aligned(PhysAddr::new(0x200000), 0x200000);
+            /// assert_eq!(page.addr(), PhysAddr::new(0x200000));
+            ///
+            /// let page_aligned = PhysPage::new_custom_aligned(PhysAddr::new(0x200001), 0x200000);
+            /// assert_eq!(page_aligned.addr(), PhysAddr::new(0x200000));
+            /// ```
+            #[inline]
+            pub const fn new_custom_aligned(addr: $addr_type, size: usize) -> Self {
+                debug_assert!(size != 0);
+
+                Self::new_custom_unchecked(addr.align_down(size), size)
+            }
+
             /// Creates a new page with a custom size without validation.
             ///
             /// # Safety
@@ -158,7 +230,7 @@ macro_rules! impl_page {
             ///
             /// # Examples
             /// ```rust
-            /// # use address_v2::{PhysPage, PhysAddr};
+            /// # use address::{PhysPage, PhysAddr};
             /// // Any address and size combination is allowed
             /// let page = PhysPage::new_custom_unchecked(PhysAddr::new(0x1234), 0x5678);
             /// assert_eq!(page.size(), 0x5678);
@@ -177,7 +249,7 @@ macro_rules! impl_page {
             ///
             /// # Examples
             /// ```rust
-            /// # use address_v2::{PhysPage, PhysAddr};
+            /// # use address::{PhysPage, PhysAddr};
             /// let page = PhysPage::new_4k(PhysAddr::new(0x1000)).unwrap();
             /// assert_eq!(page.addr(), PhysAddr::new(0x1000));
             /// ```
@@ -193,7 +265,7 @@ macro_rules! impl_page {
             ///
             /// # Examples
             /// ```rust
-            /// # use address_v2::{PhysPage, PhysAddr};
+            /// # use address::{PhysPage, PhysAddr};
             /// let page_4k = PhysPage::new_4k(PhysAddr::new(0x1000)).unwrap();
             /// assert_eq!(page_4k.size(), 0x1000);
             ///
@@ -215,7 +287,7 @@ macro_rules! impl_page {
             ///
             /// # Examples
             /// ```rust
-            /// # use address_v2::{PhysPage, PhysAddr};
+            /// # use address::{PhysPage, PhysAddr};
             /// let page = PhysPage::new_4k(PhysAddr::new(0x1000)).unwrap();
             /// let range = page.as_range();
             /// assert_eq!(range.start(), PhysAddr::new(0x1000));
@@ -241,7 +313,7 @@ macro_rules! impl_page {
             ///
             /// # Examples
             /// ```rust
-            /// # use address_v2::{PhysPage, PhysAddr, PhysAddrRange};
+            /// # use address::{PhysPage, PhysAddr, PhysAddrRange};
             /// let range = PhysAddrRange::new(PhysAddr::new(0x1000), PhysAddr::new(0x2000));
             /// let page = PhysPage::try_from_range(range, 0x1000);
             /// assert!(page.is_some());
@@ -259,6 +331,54 @@ macro_rules! impl_page {
                 } else {
                     $page_type::new_custom(range.start(), page_size)
                 }
+            }
+
+            /// Returns the page number of this page.
+            ///
+            /// # Returns
+            /// The page number of this page, calculated as `addr / page_size`
+            ///
+            /// # Notes
+            /// This method does not check if the internal address is aligned to the page size,
+            /// meaning it returns the *containing page*'s number.
+            ///
+            /// # Examples
+            /// ```rust
+            /// # use address::{PhysPage, PhysAddr};
+            /// let page = PhysPage::new_4k(PhysAddr::new(0x1000)).unwrap();
+            /// assert_eq!(page.page_num(), 0x1000 / 0x1000);
+            /// ```
+            #[inline(always)]
+            pub const fn page_num(&self) -> usize {
+                debug_assert!(self.size() != 0);
+
+                *self.addr / self.size()
+            }
+
+            /// Calculates the number of pages between this page and another page.
+            ///
+            /// # Parameters
+            /// - `other`: The other page to compare with
+            ///
+            /// # Returns
+            /// The number of pages between this page and `other`
+            ///
+            /// # Panics
+            /// Panics if the page sizes of `self` and `other` are not equal
+            ///
+            /// # Examples
+            /// ```rust
+            /// # use address::{PhysPage, PhysAddr};
+            /// let page_1 = PhysPage::new_4k(PhysAddr::new(0x1000)).unwrap();
+            /// let page_2 = PhysPage::new_4k(PhysAddr::new(0x2000)).unwrap();
+            /// assert_eq!(page_1.diff_page_count(page_2), 1);
+            /// ```
+            #[inline(always)]
+            pub const fn diff_page_count(&self, other: Self) -> isize {
+                debug_assert!(self.size() != 0);
+                debug_assert!(self.size() == other.size());
+
+                (*self.addr as isize - *other.addr as isize) / (self.size() as isize)
             }
         }
 
@@ -316,6 +436,21 @@ macro_rules! impl_page {
             #[inline(always)]
             fn eq(&self, other: &Self) -> bool {
                 self.addr == other.addr && self.size == other.size
+            }
+        }
+
+        impl ::core::cmp::PartialOrd for $page_type {
+            #[inline(always)]
+            fn partial_cmp(&self, other: &$page_type) -> Option<::core::cmp::Ordering> {
+                // FIXME: we don't compare size, assuming that all comparing pages have the same size
+                Some(self.cmp(other))
+            }
+        }
+
+        impl ::core::cmp::Ord for $page_type {
+            #[inline(always)]
+            fn cmp(&self, other: &Self) -> ::core::cmp::Ordering {
+                self.addr.cmp(&other.addr)
             }
         }
 
@@ -759,6 +894,47 @@ macro_rules! impl_page {
                 let page_3k = $page_type::new_custom($addr_type::new(0x3000), size_3k);
                 assert!(page_3k.is_some());
                 assert_eq!(page_3k.unwrap().size(), size_3k);
+            }
+
+            #[test]
+            fn test_aligned_constructor() {
+                let addr = $addr_type::new(0x12345678);
+
+                let page_4k = $page_type::new_aligned_4k(addr);
+                assert_eq!(*page_4k.addr(), 0x12345000);
+
+                let page_2m = $page_type::new_aligned_2m(addr);
+                assert_eq!(*page_2m.addr(), 0x12200000);
+
+                let page_1g = $page_type::new_aligned_1g(addr);
+                assert_eq!(*page_1g.addr(), 0);
+
+                let custom_size = 0x3000;
+                let page_custom = $page_type::new_custom_aligned(addr, custom_size);
+                assert_eq!(*page_custom.addr(), 0x12345000);
+            }
+
+            #[test]
+            fn test_page_num_success() {
+                let page_1 = $page_type::new_4k($addr_type::new(0x3000)).unwrap();
+                assert_eq!(page_1.page_num(), 0x3000 / $page_type::SIZE_4K);
+
+                let page_2 = $page_type::new_4k($addr_type::new(0x600000)).unwrap();
+                assert_eq!(page_2.page_num(), 0x600000 / $page_type::SIZE_4K);
+
+                let diff = page_2.diff_page_count(page_1);
+                assert_eq!(diff, (0x600000 - 0x3000) / $page_type::SIZE_4K as isize);
+            }
+
+            #[test]
+            #[should_panic]
+            #[cfg(debug_assertions)]
+            fn test_diff_page_count_panic_if_size_mismatch() {
+                let page_4k = $page_type::new_4k($addr_type::new(0x1000)).unwrap();
+                let page_2m = $page_type::new_2m($addr_type::new(0x200000)).unwrap();
+
+                // This should panic in debug mode due to size mismatch
+                let _ = page_4k.diff_page_count(page_2m);
             }
         }
     };

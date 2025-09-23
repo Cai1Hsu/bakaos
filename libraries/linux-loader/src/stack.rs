@@ -1,6 +1,5 @@
 use crate::{auxv::*, LinuxLoader, LoadError, ProcessContext};
-use abstractions::IUsizeAlias;
-use address::{IAddressBase, IAlignableAddress, VirtualAddress};
+use address::VirtAddr;
 use alloc::{sync::Arc, vec::Vec};
 use core::ops::{Deref, DerefMut};
 use hermit_sync::SpinMutex;
@@ -61,12 +60,10 @@ impl<'a> LinuxLoader<'a> {
         // Step3: Copy auxv values to stack, such as AT_RANDOM, AT_PLATFORM
         if let Some(random) = auxv_values.random {
             let stack_top = loader.ensure_alignment::<usize>();
-            debug_assert!(stack_top.as_usize().is_multiple_of(8));
+            debug_assert!(stack_top.is_multiple_of(8));
 
             loader.push(random);
-            self.ctx
-                .auxv
-                .insert(AuxVecKey::AT_RANDOM, loader.cursor().as_usize());
+            self.ctx.auxv.insert(AuxVecKey::AT_RANDOM, *loader.cursor());
         }
 
         if let Some(platform) = auxv_values.platform {
@@ -82,11 +79,11 @@ impl<'a> LinuxLoader<'a> {
 
             self.ctx
                 .auxv
-                .insert(AuxVecKey::AT_PLATFORM, loader.cursor().as_usize());
+                .insert(AuxVecKey::AT_PLATFORM, *loader.cursor());
         }
 
         // Step4: setup aux vector
-        loader.ensure_alignment::<VirtualAddress>();
+        loader.ensure_alignment::<VirtAddr>();
 
         // Collects the auxv entries in a specific order
         let auxv = self.ctx.auxv.collect();
@@ -99,14 +96,14 @@ impl<'a> LinuxLoader<'a> {
 
         // Step5: setup envp vector
 
-        loader.push(VirtualAddress::null());
+        loader.push(VirtAddr::null);
         loader.push_array(&envps);
         let envp_base = loader.cursor();
 
         // Step6: setup argv vector
 
         // push NULL for args
-        loader.push(VirtualAddress::null());
+        loader.push(VirtAddr::null);
         loader.push_array(&argvs);
 
         let argv_base = loader.cursor();
@@ -136,9 +133,7 @@ impl StackLoader<'_> {
     pub fn push<T: Copy>(&mut self, value: T) {
         let stack_top = self.seek(Whence::Offset(-(core::mem::size_of::<T>() as isize)));
 
-        debug_assert!(stack_top
-            .as_usize()
-            .is_multiple_of(core::mem::align_of::<T>()));
+        debug_assert!(stack_top.is_multiple_of(core::mem::align_of::<T>()));
 
         *self.pwrite().unwrap() = value;
     }
@@ -153,9 +148,7 @@ impl StackLoader<'_> {
     pub fn push_array<T: Copy>(&mut self, array: &[T]) {
         let stack_top = self.seek(Whence::Offset(-(core::mem::size_of_val(array) as isize)));
 
-        debug_assert!(stack_top
-            .as_usize()
-            .is_multiple_of(core::mem::align_of::<T>()));
+        debug_assert!(stack_top.is_multiple_of(core::mem::align_of::<T>()));
         self.pwrite_slice(array.len())
             .unwrap()
             .copy_from_slice(array);
@@ -163,7 +156,7 @@ impl StackLoader<'_> {
 
     /// Align the stack top to the given alignment.
     #[inline]
-    pub fn ensure_alignment<T>(&mut self) -> VirtualAddress {
+    pub fn ensure_alignment<T>(&mut self) -> VirtAddr {
         let cursor = self.cursor().align_down(core::mem::align_of::<T>());
         self.seek(Whence::Set(cursor))
     }
@@ -185,7 +178,7 @@ impl<'a> DerefMut for StackLoader<'a> {
 
 #[cfg(test)]
 mod tests {
-    use address::{IToPageNum, VirtualAddress, VirtualPageNumRange};
+    use address::{VirtAddr, VirtPage, VirtPageRange};
     use alloc::{string::String, vec::Vec};
     use memory_space::{MappingArea, MemorySpace};
     use mmu_abstractions::{GenericMappingFlags, PageSize};
@@ -202,12 +195,12 @@ mod tests {
         let mut memory_space = MemorySpace::new(mmu, alloc);
 
         // Allocate 2 MB for the stack.
-        let stack_base = VirtualAddress::from_usize(0x80000000);
+        let stack_base = VirtAddr::new(0x80000000);
         let stack_size = PageSize::_2M.as_usize();
 
         memory_space.alloc_and_map_area(MappingArea {
-            range: VirtualPageNumRange::from_start_count(
-                stack_base.to_floor_page_num(),
+            range: VirtPageRange::new(
+                VirtPage::new_4k(stack_base.align_down(PageSize::_4K.as_usize())).unwrap(),
                 stack_size / PageSize::_4K.as_usize(),
             ),
             area_type: memory_space::AreaType::UserStack,
@@ -221,10 +214,10 @@ mod tests {
 
         let loader = LinuxLoader {
             memory_space,
-            entry_pc: VirtualAddress::from_usize(0x10000),
+            entry_pc: VirtAddr::new(0x10000),
             stack_top: stack_base + stack_size,
-            argv_base: VirtualAddress::null(),
-            envp_base: VirtualAddress::null(),
+            argv_base: VirtAddr::null,
+            envp_base: VirtAddr::null,
             ctx,
             executable: String::new(),
         };
@@ -247,21 +240,18 @@ mod tests {
             loader.init_stack(None, &ctx, &auxv_values).unwrap();
 
             // Stack top should be aligned to 8
-            assert_eq!(
-                loader.stack_top.as_usize() % 8,
-                0,
+            assert!(
+                loader.stack_top.is_multiple_of(8),
                 "Stack top should be 8-byte aligned"
             );
 
             // Verify pointers alignment
-            assert_eq!(
-                loader.argv_base.as_usize() % 8,
-                0,
+            assert!(
+                loader.argv_base.is_multiple_of(8),
                 "argv_base should be 8-byte aligned"
             );
-            assert_eq!(
-                loader.envp_base.as_usize() % 8,
-                0,
+            assert!(
+                loader.envp_base.is_multiple_of(8),
                 "envp_base should be 8-byte aligned"
             );
         });
@@ -282,10 +272,10 @@ mod tests {
             let argc: usize = *stream.read().unwrap();
             assert_eq!(argc, 0);
 
-            let argv_null: VirtualAddress = *stream.read().unwrap();
+            let argv_null: VirtAddr = *stream.read().unwrap();
             assert!(argv_null.is_null());
 
-            let envp_null: VirtualAddress = *stream.read().unwrap();
+            let envp_null: VirtAddr = *stream.read().unwrap();
             assert!(envp_null.is_null());
 
             let auxv_key: AuxVecKey = *stream.read().unwrap();
@@ -363,21 +353,21 @@ mod tests {
 
         let mut argv_pointers = Vec::new();
         for i in 0..argc {
-            let ptr: VirtualAddress = *stream.read().unwrap();
+            let ptr: VirtAddr = *stream.read().unwrap();
             argv_pointers.push(ptr);
             assert!(!ptr.is_null(), "argv[{}] should not be null", i);
         }
 
-        let argv_null: VirtualAddress = *stream.read().unwrap();
+        let argv_null: VirtAddr = *stream.read().unwrap();
         assert!(argv_null.is_null(), "argv array should be null-terminated");
 
         let envp_pointers = stream
-            .read_unsized_slice::<VirtualAddress>(|ptr, _| !ptr.is_null())
+            .read_unsized_slice::<VirtAddr>(|ptr, _| !ptr.is_null())
             .unwrap()
             .to_vec();
 
         assert!(
-            stream.read::<VirtualAddress>().unwrap().is_null(),
+            stream.read::<VirtAddr>().unwrap().is_null(),
             "envp array should be null-terminated"
         );
 
@@ -421,7 +411,7 @@ mod tests {
 
     fn verify_string_array_contents(
         stream: &mut MemoryStream,
-        pointers: &[VirtualAddress],
+        pointers: &[VirtAddr],
         expected_strings: &[alloc::borrow::Cow<str>],
     ) {
         for (i, (ptr, expected)) in pointers.iter().zip(expected_strings.iter()).enumerate() {
@@ -448,7 +438,7 @@ mod tests {
 
         if let Some(expected_random) = auxv_values.random {
             let random = auxv_map.get(&AuxVecKey::AT_RANDOM).unwrap();
-            stream.seek(Whence::Set(VirtualAddress::from_usize(*random)));
+            stream.seek(Whence::Set(VirtAddr::new(*random)));
 
             let actual_random = *stream.read::<[u8; 16]>().unwrap();
 
@@ -457,7 +447,7 @@ mod tests {
 
         if let Some(expected_platform) = auxv_values.platform {
             let platform_addr = auxv_map.get(&AuxVecKey::AT_PLATFORM).unwrap();
-            stream.seek(Whence::Set(VirtualAddress::from_usize(*platform_addr)));
+            stream.seek(Whence::Set(VirtAddr::new(*platform_addr)));
 
             let actual_platform = stream.read_unsized_slice::<u8>(|&c, _| c != b'\0').unwrap();
             let actual_platform = String::from_utf8_lossy(actual_platform);

@@ -1,8 +1,7 @@
 use core::alloc::Layout;
 use std::sync::Arc;
 
-use abstractions::IUsizeAlias;
-use address::PhysicalAddress;
+use address::PhysAddr;
 use allocation::FrameAllocator;
 use allocation_abstractions::IFrameAllocator;
 use hermit_sync::SpinMutex;
@@ -24,8 +23,8 @@ impl TestFrameAllocator {
         let (native_ptr, layout) = unsafe { alloc_memory(memory_size) };
 
         let inner = FrameAllocator::new(
-            PhysicalAddress::from_usize(native_ptr as usize + layout.size()),
-            PhysicalAddress::from_usize(native_ptr as usize),
+            PhysAddr::new(native_ptr as usize + layout.size()),
+            PhysAddr::new(native_ptr as usize),
         );
 
         Arc::new(SpinMutex::new(TestFrameAllocator {
@@ -49,12 +48,12 @@ impl TestFrameAllocator {
 }
 
 impl ITestFrameAllocator for TestFrameAllocator {
-    fn check_paddr(&self, paddr: PhysicalAddress, len: usize) -> bool {
-        self.inner.bottom() <= paddr && paddr + len <= self.inner.top()
+    fn check_paddr(&self, paddr: PhysAddr, len: usize) -> bool {
+        self.inner.bottom().addr() <= paddr && paddr + len < self.inner.top().addr()
     }
 
-    fn linear_map(&self, paddr: PhysicalAddress) -> Option<*mut u8> {
-        Some(paddr.as_usize() as *mut u8)
+    fn linear_map(&self, paddr: PhysAddr) -> Option<*mut u8> {
+        Some(*paddr as *mut u8)
     }
 }
 

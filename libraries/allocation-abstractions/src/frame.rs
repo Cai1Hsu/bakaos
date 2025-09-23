@@ -1,9 +1,9 @@
-use core::ops::{Deref, Drop, Range};
+use core::ops::{Deref, Drop};
 
-use address::PhysicalAddress;
+use address::{PhysAddr, PhysPageRange};
 
 #[derive(Debug)]
-pub struct FrameDesc(pub PhysicalAddress);
+pub struct FrameDesc(pub PhysAddr);
 
 impl FrameDesc {
     /// Create a new frame descriptor
@@ -13,13 +13,13 @@ impl FrameDesc {
     /// The caller must ensure that the frame is allocated.
     ///
     /// The caller is responsible for deallocating the frame.
-    pub unsafe fn new(addr: PhysicalAddress) -> Self {
+    pub unsafe fn new(addr: PhysAddr) -> Self {
         FrameDesc(addr)
     }
 }
 
 impl Deref for FrameDesc {
-    type Target = PhysicalAddress;
+    type Target = PhysAddr;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -33,7 +33,7 @@ impl Drop for FrameDesc {
 }
 
 pub struct FrameRangeDesc {
-    range: Range<PhysicalAddress>,
+    range: PhysPageRange,
 }
 
 impl FrameRangeDesc {
@@ -44,15 +44,13 @@ impl FrameRangeDesc {
     /// The caller must ensure that the frames are allocated.
     ///
     /// The caller is responsible for deallocating the frames.
-    pub unsafe fn new(start: PhysicalAddress, len: usize) -> Self {
-        Self {
-            range: start..start + len,
-        }
+    pub unsafe fn new(range: PhysPageRange) -> Self {
+        Self { range }
     }
 }
 
 impl Deref for FrameRangeDesc {
-    type Target = Range<PhysicalAddress>;
+    type Target = PhysPageRange;
 
     fn deref(&self) -> &Self::Target {
         &self.range

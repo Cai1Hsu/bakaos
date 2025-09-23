@@ -1,7 +1,4 @@
-use abstractions::IUsizeAlias;
-use address::{
-    IAddressBase, IAlignableAddress, IPageNum, IToPageNum, VirtualAddress, VirtualPageNumRange,
-};
+use address::{VirtAddr, VirtPage, VirtPageRange};
 use alloc::vec::Vec;
 use constants::SyscallError;
 use memory_space::{AreaType, MapType, MappingArea, MemorySpace};
@@ -12,13 +9,13 @@ use crate::{SyscallContext, SyscallResult};
 
 impl SyscallContext {
     const VMA_MAX_LEN: usize = 1 << 36; // 64 GB
-    const VMA_MIN_ADDR: VirtualAddress = VirtualAddress::from_usize(0x1000);
-    const VMA_BASE: VirtualAddress = VirtualAddress::from_usize(0x10000000);
+    const VMA_MIN_ADDR: VirtAddr = VirtAddr::new(0x1000);
+    const VMA_BASE: VirtAddr = VirtAddr::new(0x10000000);
     const VMA_GAP: usize = constants::PAGE_SIZE;
 
     pub fn sys_mmap(
         &self,
-        addr: VirtualAddress,
+        addr: VirtAddr,
         len: usize,
         prot: MemoryMapProt,
         flags: MemoryMapFlags,
@@ -26,7 +23,7 @@ impl SyscallContext {
         fd: usize,
         offset: usize,
     ) -> SyscallResult {
-        if !addr.is_page_aligned() || (!addr.is_null() && addr < Self::VMA_MIN_ADDR) {
+        if VirtPage::new_4k(addr).is_none() || (!addr.is_null() && addr < Self::VMA_MIN_ADDR) {
             return SyscallError::BadAddress;
         }
 
@@ -56,7 +53,7 @@ impl SyscallContext {
 
     fn sys_mmap_anonymous(
         &self,
-        mut addr: VirtualAddress,
+        mut addr: VirtAddr,
         len: usize,
         permissions: GenericMappingFlags,
         offset: usize,
@@ -78,25 +75,21 @@ impl SyscallContext {
             return SyscallError::CannotAllocateMemory;
         }
 
-        let start = addr.to_floor_page_num();
-        let end = (addr + len).to_ceil_page_num();
+        let start_page = VirtPage::new_4k(addr).unwrap();
+        let end_page = VirtPage::new_4k(addr + len).unwrap();
 
         mem.alloc_and_map_area(MappingArea {
-            range: VirtualPageNumRange::from_start_end(start, end),
+            range: VirtPageRange::from_start_end(start_page, end_page).unwrap(),
             area_type: AreaType::VMA,
             map_type: MapType::Framed,
             permissions,
             allocation: None,
         });
 
-        Ok(addr.as_usize() as isize)
+        Ok(*addr as isize)
     }
 
-    fn sys_mmap_select_addr(
-        mem: &mut MemorySpace,
-        addr: VirtualAddress,
-        len: usize,
-    ) -> VirtualAddress {
+    fn sys_mmap_select_addr(mem: &mut MemorySpace, addr: VirtAddr, len: usize) -> VirtAddr {
         debug_assert!(len.is_multiple_of(constants::PAGE_SIZE));
 
         let mut mappings = mem.mappings().iter().collect::<Vec<_>>();
@@ -107,31 +100,28 @@ impl SyscallContext {
             (false, 0) => return addr,
             (true, 0) => return Self::VMA_BASE,
             // We start from a mapping's end to avoid overlap with it
-            (true, _) => mappings[0].range().end().end_addr() + Self::VMA_GAP,
+            (true, _) => mappings[0].range().end().addr() + Self::VMA_GAP,
             _ => addr, // search from the given address
         };
 
         for mapping in mappings.iter() {
             let mapping_range = mapping.range();
-            let possible_hole = VirtualPageNumRange::from_start_count(
-                last_hole_start.to_ceil_page_num(),
+            let possible_hole = VirtPageRange::new(
+                VirtPage::new_4k(last_hole_start).unwrap(),
                 len / constants::PAGE_SIZE,
             );
 
-            if mapping_range.contains(possible_hole.start())
-                || mapping_range.contains(possible_hole.end())
-            {
-                last_hole_start = mapping_range.end().end_addr() + Self::VMA_GAP;
+            if possible_hole.intersects(mapping_range) {
+                last_hole_start = mapping_range.end().addr() + Self::VMA_GAP;
                 continue;
             }
 
-            if possible_hole.end().end_addr() + Self::VMA_GAP <= mapping_range.start().start_addr()
-            {
+            if possible_hole.end().addr() + Self::VMA_GAP <= mapping_range.start().addr() {
                 return last_hole_start;
             }
         }
 
-        mappings.last().unwrap().range().end().end_addr() + Self::VMA_GAP
+        mappings.last().unwrap().range().end().addr() + Self::VMA_GAP
     }
 
     fn prot_to_permissions(prot: MemoryMapProt) -> GenericMappingFlags {
@@ -157,7 +147,7 @@ impl SyscallContext {
 mod tests {
     use std::sync::Arc;
 
-    use address::{VirtualAddress, VirtualPageNum};
+    use address::{VirtAddr, VirtPage};
     use allocation_abstractions::IFrameAllocator;
     use hermit_sync::SpinMutex;
     use kernel_abstractions::IKernel;
@@ -219,7 +209,7 @@ mod tests {
     fn test_addr_specified() {
         let mut mem = setup_memory_space();
 
-        let specified_addr = VirtualAddress::from_usize(0x10000000);
+        let specified_addr = VirtAddr::new(0x10000000);
 
         let addr = SyscallContext::sys_mmap_select_addr(&mut mem, specified_addr, 0x1000);
 
@@ -230,7 +220,7 @@ mod tests {
     fn test_addr_not_specified_empty_mappings() {
         let mut mem = setup_memory_space();
 
-        let addr = SyscallContext::sys_mmap_select_addr(&mut mem, VirtualAddress::null(), 0x1000);
+        let addr = SyscallContext::sys_mmap_select_addr(&mut mem, VirtAddr::null, 0x1000);
 
         assert_eq!(addr, SyscallContext::VMA_BASE);
     }
@@ -239,22 +229,20 @@ mod tests {
     fn test_addr_not_specified_start_with_gap() {
         let mut mem = setup_memory_space();
 
-        let end = VirtualPageNum::from_usize(0x1000);
+        let end = VirtPage::new_aligned_4k(VirtAddr::new(0x1000));
 
         mem.map_area(MappingArea {
-            range: VirtualPageNumRange::from_start_end(
-                VirtualPageNum::from_usize(0x1),
-                VirtualPageNum::from_usize(0x1000),
-            ),
+            range: VirtPageRange::from_start_end(VirtPage::new_aligned_4k(VirtAddr::new(0x1)), end)
+                .unwrap(),
             area_type: AreaType::VMA,
             map_type: MapType::Framed,
             permissions: GenericMappingFlags::User,
             allocation: Some(MappingAreaAllocation::empty(mem.allocator().clone())),
         });
 
-        let addr = SyscallContext::sys_mmap_select_addr(&mut mem, VirtualAddress::null(), 0x1000);
+        let addr = SyscallContext::sys_mmap_select_addr(&mut mem, VirtAddr::null, 0x1000);
 
-        assert!(addr > end.end_addr());
+        assert!(addr > end.addr());
     }
 
     #[test]
@@ -263,8 +251,14 @@ mod tests {
 
         // Since the 'end' is exclusive, we actually need to add one to the end address.
         // | 10: first area start | 11: first area end | 12: gap | 13: hole start | 14: hole end | 15: gap | 16: second area start|
-        let first = VirtualPageNumRange::from_start_count(VirtualPageNum::from_usize(0x10), 1);
-        let second = VirtualPageNumRange::from_start_count(VirtualPageNum::from_usize(0x16), 1);
+        let first = VirtPageRange::new(
+            VirtPage::new_4k(VirtAddr::new(0x10 * constants::PAGE_SIZE)).unwrap(),
+            1,
+        );
+        let second = VirtPageRange::new(
+            VirtPage::new_4k(VirtAddr::new(0x16 * constants::PAGE_SIZE)).unwrap(),
+            1,
+        );
 
         mem.alloc_and_map_area(MappingArea {
             range: first,
@@ -282,19 +276,19 @@ mod tests {
             allocation: None,
         });
 
-        let addr = SyscallContext::sys_mmap_select_addr(&mut mem, VirtualAddress::null(), 0x1000);
+        let addr = SyscallContext::sys_mmap_select_addr(&mut mem, VirtAddr::null, 0x1000);
 
         // We want the addr to be between the two ranges
-        assert!(addr > first.end().end_addr());
-        assert!(addr < second.start().start_addr(), "addr: {:?}", addr);
+        assert!(addr > first.end().addr());
+        assert!(addr < second.start().addr(), "addr: {:?}", addr);
 
         assert!(
-            addr.is_page_aligned(),
+            VirtPage::new_4k(addr).is_some(),
             "selected address must be page-aligned"
         );
         // Ensure we honor the configured VMA_GAP from the previous mapping
         assert!(
-            addr >= first.end().end_addr() + SyscallContext::VMA_GAP,
+            addr >= first.end().addr() + SyscallContext::VMA_GAP,
             "address should be at least VMA_GAP past previous mapping end"
         );
     }
@@ -303,20 +297,25 @@ mod tests {
     fn test_addr_specified_collision() {
         let mut mem = setup_memory_space();
 
-        let start_addr = VirtualAddress::from_usize(0x2000);
-        let end_page = VirtualPageNum::from_usize(0x1000);
+        let start_addr = VirtAddr::new(0x2000);
+        let range = VirtPageRange::new(VirtPage::new_aligned_4k(start_addr), 20);
 
         mem.map_area(MappingArea {
-            range: VirtualPageNumRange::from_start_end(start_addr.to_floor_page_num(), end_page),
+            range,
             area_type: AreaType::VMA,
             map_type: MapType::Framed,
             permissions: GenericMappingFlags::User,
             allocation: Some(MappingAreaAllocation::empty(mem.allocator().clone())),
         });
 
-        let addr = SyscallContext::sys_mmap_select_addr(&mut mem, start_addr + 4096, 0x1000);
+        let addr = start_addr + 4096;
 
-        assert!(addr > end_page.end_addr());
+        // ensure given addr is in the range
+        assert!(range.contains_page(VirtPage::new_aligned_4k(addr)));
+
+        let addr = SyscallContext::sys_mmap_select_addr(&mut mem, addr, 0x1000);
+
+        assert!(addr > range.end().addr());
     }
 
     #[test]
@@ -324,7 +323,7 @@ mod tests {
         let ctx = setup_syscall_context();
 
         let ret = ctx.sys_mmap(
-            VirtualAddress::from_usize(0x10001),
+            VirtAddr::new(0x10001),
             4096,
             MemoryMapProt::READ,
             MemoryMapFlags::ANONYMOUS,
@@ -340,7 +339,7 @@ mod tests {
         let ctx = setup_syscall_context();
 
         let ret = ctx.sys_mmap(
-            VirtualAddress::from_usize(0x1),
+            VirtAddr::new(0x1),
             4096,
             MemoryMapProt::READ,
             MemoryMapFlags::ANONYMOUS,
@@ -414,10 +413,10 @@ mod tests {
 
         assert!(ret.is_ok());
 
-        let vaddr = VirtualAddress::from_usize(ret.unwrap() as usize);
+        let vaddr = VirtAddr::new(ret.unwrap() as usize);
 
         assert!(!vaddr.is_null());
-        assert!(vaddr.is_page_aligned());
+        assert!(vaddr.is_aligned(constants::PAGE_SIZE));
     }
 
     #[test]
@@ -433,7 +432,7 @@ mod tests {
             0,
         );
 
-        let vaddr = VirtualAddress::from_usize(ret.unwrap() as usize);
+        let vaddr = VirtAddr::new(ret.unwrap() as usize);
 
         let process = ctx.task.process();
 
@@ -442,7 +441,7 @@ mod tests {
         let target_mapping = mem
             .mappings()
             .iter()
-            .find(|mapping| mapping.range().start().start_addr() == vaddr);
+            .find(|mapping| mapping.range().start().addr() == vaddr);
 
         assert!(target_mapping.is_some());
     }
@@ -466,7 +465,7 @@ mod tests {
             0,
         );
 
-        let vaddr = VirtualAddress::from_usize(ret.unwrap() as usize);
+        let vaddr = VirtAddr::new(ret.unwrap() as usize);
 
         let mut buf = create_buffer(len);
 
@@ -501,7 +500,7 @@ mod tests {
             0,
         );
 
-        let vaddr = VirtualAddress::from_usize(ret.unwrap() as usize);
+        let vaddr = VirtAddr::new(ret.unwrap() as usize);
 
         let buf = create_buffer(len);
 
@@ -536,7 +535,7 @@ mod tests {
             0,
         );
 
-        let vaddr = VirtualAddress::from_usize(ret.unwrap() as usize);
+        let vaddr = VirtAddr::new(ret.unwrap() as usize);
 
         let process = ctx.task.process();
 
@@ -562,7 +561,7 @@ mod tests {
             0,
         );
 
-        let vaddr = VirtualAddress::from_usize(ret.unwrap() as usize);
+        let vaddr = VirtAddr::new(ret.unwrap() as usize);
 
         let process = ctx.task.process();
         let mmu = process.mmu();
@@ -579,7 +578,7 @@ mod tests {
         let len = 8192;
 
         let ret = ctx.sys_mmap(
-            VirtualAddress::null(),
+            VirtAddr::null,
             len,
             MemoryMapProt::READ | MemoryMapProt::WRITE,
             MemoryMapFlags::ANONYMOUS,
@@ -587,7 +586,7 @@ mod tests {
             0,
         );
 
-        let vaddr = VirtualAddress::from_usize(ret.unwrap() as usize);
+        let vaddr = VirtAddr::new(ret.unwrap() as usize);
 
         let mut random_content = create_buffer(len);
 
@@ -617,14 +616,7 @@ mod tests {
     fn test_syscall_nonsense_flags_return_invalid_argument(flags: MemoryMapFlags) {
         let ctx = setup_syscall_context();
 
-        let ret = ctx.sys_mmap(
-            VirtualAddress::null(),
-            0x1000,
-            MemoryMapProt::READ,
-            flags,
-            0,
-            0,
-        );
+        let ret = ctx.sys_mmap(VirtAddr::null, 0x1000, MemoryMapProt::READ, flags, 0, 0);
 
         assert_eq!(ret, SyscallError::InvalidArgument);
     }
@@ -647,7 +639,7 @@ mod tests {
         let ctx = setup_syscall_context();
 
         let ret = ctx.sys_mmap(
-            VirtualAddress::null(),
+            VirtAddr::null,
             len,
             MemoryMapProt::READ,
             MemoryMapFlags::ANONYMOUS,
@@ -668,7 +660,7 @@ mod tests {
         let ctx = setup_syscall_context();
 
         let ret = ctx.sys_mmap(
-            VirtualAddress::null(),
+            VirtAddr::null,
             usize::MAX & !0xfff,
             MemoryMapProt::READ | MemoryMapProt::WRITE,
             MemoryMapFlags::ANONYMOUS,
