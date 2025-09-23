@@ -1,5 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use address::PhysAddrRange;
 use alloc::vec::Vec;
 
 #[cfg(feature = "std")]
@@ -21,4 +22,8 @@ pub trait IFrameAllocator {
     fn dealloc(&mut self, frame: FrameDesc);
 
     fn dealloc_range(&mut self, range: FrameRangeDesc);
+
+    fn check_paddr(&self, paddr: PhysAddrRange) -> bool;
+
+    unsafe fn linear_map(&self, paddr: PhysAddrRange) -> Option<&'static mut [u8]>;
 }

@@ -4,14 +4,13 @@ use std::{
     sync::{atomic::AtomicUsize, Arc},
 };
 
-use address::{PhysAddr, VirtAddr, VirtAddrRange};
+use address::{PhysAddr, PhysAddrRange, VirtAddr, VirtAddrRange};
+use allocation_abstractions::IFrameAllocator;
 use hermit_sync::SpinMutex;
 use mmu_abstractions::{GenericMappingFlags, MMUError, PageSize, PagingError, PagingResult, IMMU};
 
-use crate::allocation::ITestFrameAllocator;
-
 pub struct TestMMU {
-    alloc: Arc<SpinMutex<dyn ITestFrameAllocator>>,
+    alloc: Arc<SpinMutex<dyn IFrameAllocator>>,
     mappings: Vec<MappingRecord>,
     mapped: SpinMutex<BTreeMap<VirtAddr, MappedMemory>>,
 }
@@ -29,7 +28,7 @@ struct MappingRecord {
 
 impl TestMMU {
     #[allow(clippy::new_ret_no_self)]
-    pub fn new(alloc: Arc<SpinMutex<dyn ITestFrameAllocator>>) -> Arc<SpinMutex<dyn IMMU>> {
+    pub fn new(alloc: Arc<SpinMutex<dyn IFrameAllocator>>) -> Arc<SpinMutex<dyn IMMU>> {
         Arc::new(SpinMutex::new(Self {
             alloc,
             mappings: Vec::new(),
@@ -195,7 +194,11 @@ impl IMMU for TestMMU {
             let mapping_len = mapping.len - offset;
             let len = mapping_len.min(len - checking_offset);
 
-            if !mapping.from_test_env && !self.alloc.lock().check_paddr(mapping.phys + offset, len)
+            if !mapping.from_test_env
+                && !self
+                    .alloc
+                    .lock()
+                    .check_paddr(PhysAddrRange::from_start_len(mapping.phys + offset, len))
             {
                 return Err(MMUError::AccessFault);
             }
@@ -236,7 +239,11 @@ impl IMMU for TestMMU {
             let mapping_len = mapping.len - offset;
             let len = mapping_len.min(len - checking_offset);
 
-            if !mapping.from_test_env && !self.alloc.lock().check_paddr(mapping.phys + offset, len)
+            if !mapping.from_test_env
+                && !self
+                    .alloc
+                    .lock()
+                    .check_paddr(PhysAddrRange::from_start_len(mapping.phys + offset, len))
             {
                 return Err(MMUError::AccessFault);
             }
@@ -270,21 +277,12 @@ impl IMMU for TestMMU {
     }
 
     fn translate_phys(&self, paddr: PhysAddr, len: usize) -> Result<&'static mut [u8], MMUError> {
-        for mapping in self.mappings.iter().filter(|m| m.from_test_env) {
-            if paddr >= mapping.phys && paddr < mapping.phys + mapping.len {
-                return Ok(unsafe { std::slice::from_raw_parts_mut(*paddr as *mut u8, len) });
-            }
+        unsafe {
+            self.alloc
+                .lock()
+                .linear_map(PhysAddrRange::from_start_len(paddr, len))
+                .ok_or(MMUError::AccessFault)
         }
-
-        let alloc = self.alloc.lock();
-
-        if !alloc.check_paddr(paddr, len) {
-            return Err(MMUError::AccessFault);
-        }
-
-        let ptr= alloc.linear_map(paddr).expect("The test allocator does not support linear mapping. Use contiguous::TestFrameAllocator");
-
-        Ok(unsafe { std::slice::from_raw_parts_mut(ptr, len) })
     }
 
     fn platform_payload(&self) -> usize {

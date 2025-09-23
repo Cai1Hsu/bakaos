@@ -140,4 +140,12 @@ impl IFrameAllocator for FrameAllocator {
 
         core::mem::forget(range);
     }
+
+    unsafe fn linear_map(&self, _paddr: address::PhysAddrRange) -> Option<&'static mut [u8]> {
+        None // Native frame allocator cannot provide linear mapping
+    }
+
+    fn check_paddr(&self, paddr: address::PhysAddrRange) -> bool {
+        paddr.start() >= self.bottom && paddr.end() <= self.top
+    }
 }
