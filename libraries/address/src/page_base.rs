@@ -897,6 +897,24 @@ macro_rules! impl_page {
             }
 
             #[test]
+            fn test_aligned_constructor() {
+                let addr = $addr_type::new(0x12345678);
+
+                let page_4k = $page_type::new_aligned_4k(addr);
+                assert_eq!(*page_4k.addr(), 0x12345000);
+
+                let page_2m = $page_type::new_aligned_2m(addr);
+                assert_eq!(*page_2m.addr(), 0x12200000);
+
+                let page_1g = $page_type::new_aligned_1g(addr);
+                assert_eq!(*page_1g.addr(), 0);
+
+                let custom_size = 0x3000;
+                let page_custom = $page_type::new_custom_aligned(addr, custom_size);
+                assert_eq!(*page_custom.addr(), 0x12345000);
+            }
+
+            #[test]
             fn test_page_num_success() {
                 let page_1 = $page_type::new_4k($addr_type::new(0x3000)).unwrap();
                 assert_eq!(page_1.page_num(), 0x3000 / $page_type::SIZE_4K);
