@@ -1,7 +1,6 @@
 use ::core::fmt::Debug;
 
-use abstractions::IUsizeAlias;
-use address::PhysicalAddress;
+use address::PhysAddr;
 use mmu_abstractions::GenericMappingFlags;
 
 use crate::pte::{IArchPageTableEntry, IArchPageTableEntryBase, IGenericMappingFlags};
@@ -130,14 +129,14 @@ impl const IArchPageTableEntryBase for RV64PageTableEntry {
     }
 
     #[inline(always)]
-    fn new_table(paddr: PhysicalAddress) -> Self {
+    fn new_table(paddr: PhysAddr) -> Self {
         const FLAGS: RV64PageTableEntryFlags = RV64PageTableEntryFlags::Valid;
-        Self::from_bits(((paddr.as_usize() >> 2) as u64 & PTE_PHYS_MASK) | FLAGS.bits() as u64)
+        Self::from_bits(((*paddr >> 2) as u64 & PTE_PHYS_MASK) | FLAGS.bits() as u64)
     }
 
     #[inline(always)]
-    fn paddr(&self) -> PhysicalAddress {
-        PhysicalAddress::from_usize(((self.bits() & PTE_PHYS_MASK) << 2) as usize)
+    fn paddr(&self) -> PhysAddr {
+        PhysAddr::new(((self.bits() & PTE_PHYS_MASK) << 2) as usize)
     }
 
     #[inline(always)]
@@ -146,20 +145,20 @@ impl const IArchPageTableEntryBase for RV64PageTableEntry {
     }
 
     #[inline(always)]
-    fn new_page(paddr: PhysicalAddress, flags: GenericMappingFlags, _huge: bool) -> Self {
+    fn new_page(paddr: PhysAddr, flags: GenericMappingFlags, _huge: bool) -> Self {
         let flags = flags
             .to_arch()
             .union(RV64PageTableEntryFlags::Accessed)
             .union(RV64PageTableEntryFlags::Dirty);
 
-        Self(flags.bits() as u64 | ((paddr.as_usize() >> 2) as u64 & PTE_PHYS_MASK))
+        Self(flags.bits() as u64 | ((*paddr >> 2) as u64 & PTE_PHYS_MASK))
     }
 }
 
 impl IArchPageTableEntry for RV64PageTableEntry {
-    fn set_paddr(&mut self, paddr: PhysicalAddress) {
+    fn set_paddr(&mut self, paddr: PhysAddr) {
         self.0 = (self.0 & !(PTE_PHYS_MASK)) // keep flags
-            | ((paddr.as_usize() as u64 >> 2) & PTE_PHYS_MASK); // new paddr
+            | ((*paddr as u64 >> 2) & PTE_PHYS_MASK); // new paddr
     }
 
     fn set_flags(&mut self, flags: GenericMappingFlags, _huge: bool) {
@@ -262,7 +261,7 @@ mod tests {
 
     #[test]
     fn test_pte_construction() {
-        let paddr = PhysicalAddress::from_usize(0x4000);
+        let paddr = PhysAddr::from_usize(0x4000);
         let flags = GenericMappingFlags::Readable | GenericMappingFlags::Writable;
         let pte = RV64PageTableEntry::new_page(paddr, flags, false);
 
@@ -289,23 +288,23 @@ mod tests {
     #[test]
     fn test_set_paddr() {
         let mut pte = RV64PageTableEntry::new_page(
-            PhysicalAddress::from_usize(0x1000),
+            PhysAddr::from_usize(0x1000),
             GenericMappingFlags::empty(),
             false,
         );
-        let new_paddr = PhysicalAddress::from_usize(0x2000);
+        let new_paddr = PhysAddr::from_usize(0x2000);
         pte.set_paddr(new_paddr);
         assert_eq!(pte.paddr(), new_paddr);
 
         let original_flags = pte.flags_internal();
-        pte.set_paddr(PhysicalAddress::from_usize(0x3000));
+        pte.set_paddr(PhysAddr::from_usize(0x3000));
         assert_eq!(pte.flags_internal(), original_flags);
     }
 
     #[test]
     fn test_set_flags() {
         let mut pte = RV64PageTableEntry::new_page(
-            PhysicalAddress::from_usize(0x1000),
+            PhysAddr::from_usize(0x1000),
             GenericMappingFlags::Readable,
             false,
         );
@@ -332,7 +331,7 @@ mod tests {
     #[test]
     fn test_add_remove_flags() {
         let mut pte = RV64PageTableEntry::new_page(
-            PhysicalAddress::from_usize(0x1000),
+            PhysAddr::from_usize(0x1000),
             GenericMappingFlags::Readable,
             false,
         );
@@ -361,7 +360,7 @@ mod tests {
     #[test]
     fn test_clear_pte() {
         let mut pte = RV64PageTableEntry::new_page(
-            PhysicalAddress::from_usize(0x1000),
+            PhysAddr::from_usize(0x1000),
             GenericMappingFlags::Readable,
             false,
         );
@@ -372,12 +371,12 @@ mod tests {
     #[test]
     fn test_debug_output() {
         let pte = RV64PageTableEntry::new_page(
-            PhysicalAddress::from_usize(0x1000),
+            PhysAddr::from_usize(0x1000),
             GenericMappingFlags::Executable,
             false,
         );
         let debug_str = format!("{:?}", pte);
-        assert!(debug_str.contains("paddr: PhysicalAddress(0x1000)"));
+        assert!(debug_str.contains("paddr: PhysAddr(0x1000)"));
         assert!(debug_str.contains("flags"));
         assert!(debug_str.contains("Executable"));
         assert!(debug_str.contains("Accessed"));

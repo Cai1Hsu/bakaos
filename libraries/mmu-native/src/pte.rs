@@ -1,4 +1,4 @@
-use address::PhysicalAddress;
+use address::PhysAddr;
 use alloc::fmt::Debug;
 use mmu_abstractions::GenericMappingFlags;
 
@@ -28,15 +28,15 @@ pub trait IArchPageTableEntryBase:
 
     fn is_empty(&self) -> bool;
 
-    fn new_table(paddr: PhysicalAddress) -> Self;
-    fn paddr(&self) -> PhysicalAddress;
+    fn new_table(paddr: PhysAddr) -> Self;
+    fn paddr(&self) -> PhysAddr;
     fn flags(&self) -> GenericMappingFlags;
 
-    fn new_page(paddr: PhysicalAddress, flags: GenericMappingFlags, huge: bool) -> Self;
+    fn new_page(paddr: PhysAddr, flags: GenericMappingFlags, huge: bool) -> Self;
 }
 
 pub trait IArchPageTableEntry: const IArchPageTableEntryBase {
-    fn set_paddr(&mut self, paddr: PhysicalAddress);
+    fn set_paddr(&mut self, paddr: PhysAddr);
     fn set_flags(&mut self, flags: GenericMappingFlags, huge: bool);
     fn clear(&mut self);
 

@@ -10,7 +10,6 @@ log = "0.4"
 hermit-sync = "0.1.6"
 utilities = { path = "../libraries/utilities", default-features = false }
 timing = { path = "../libraries/timing", default-features = false }
-abstractions = { path = "../libraries/abstractions", default-features = false }
 constants = { path = "../libraries/constants", default-features = false }
 address = { path = "../libraries/address", default-features = false }
 threading = { path = "../libraries/threading", default-features = false }

@@ -1,8 +1,4 @@
-use abstractions::IUsizeAlias;
-use address::{
-    IAddressBase, IPageNum, IToPageNum, VirtualAddress, VirtualAddressRange, VirtualPageNum,
-    VirtualPageNumRange,
-};
+use address::{VirtAddr, VirtAddrRange, VirtPage, VirtPageRange};
 use alloc::{string::String, sync::Arc, vec::Vec};
 use hermit_sync::SpinMutex;
 use log::trace;
@@ -78,8 +74,8 @@ impl<'a> LinuxLoader<'a> {
 
             let slice = pt
                 .translate_phys(
-                    boxed_elf_holding.start,
-                    boxed_elf_holding.end.as_usize() - boxed_elf_holding.start.as_usize(),
+                    boxed_elf_holding.start().addr(),
+                    boxed_elf_holding.as_addr_range().len(),
                 )
                 .unwrap();
 
@@ -97,11 +93,12 @@ impl<'a> LinuxLoader<'a> {
         // '\x7fELF' in ASCII
         // const ELF_MAGIC: [u8; 4] = [0x7f, 0x45, 0x4c, 0x46];
 
-        let mut min_start_vpn = VirtualPageNum::from_usize(usize::MAX);
-        let mut max_end_vpn = VirtualPageNum::from_usize(0);
+        let mut min_start_vpn =
+            VirtPage::new_custom_unchecked(VirtAddr::new(usize::MAX), constants::PAGE_SIZE);
+        let mut max_end_vpn = VirtPage::new_custom_unchecked(VirtAddr::null, constants::PAGE_SIZE);
 
-        let mut implied_ph = VirtualAddress::null();
-        let mut phdr = VirtualAddress::null();
+        let mut implied_ph = VirtAddr::null;
+        let mut phdr = VirtAddr::null;
 
         let mut interpreters = Vec::new();
 
@@ -118,7 +115,7 @@ impl<'a> LinuxLoader<'a> {
                     continue;
                 }
                 Ok(xmas_elf::program::Type::Phdr) => {
-                    phdr = VirtualAddress::from_usize(ph.virtual_addr() as usize);
+                    phdr = VirtAddr::new(ph.virtual_addr() as usize);
                     trace!("Handled");
                     continue;
                 }
@@ -128,10 +125,13 @@ impl<'a> LinuxLoader<'a> {
                 }
             }
 
-            let mut start = VirtualAddress::from_usize(ph.virtual_addr() as usize);
+            let mut start = VirtAddr::new(ph.virtual_addr() as usize);
             let mut end = start + ph.mem_size() as usize;
 
-            if start.to_floor_page_num().as_usize() == 0 {
+            let start_page = VirtPage::new_aligned_4k(start);
+            let end_page = VirtPage::new_aligned_4k(end.align_up(constants::PAGE_SIZE)); // end is exclusive
+
+            if start_page.page_num() == 0 {
                 pie_offset = constants::PAGE_SIZE;
             }
 
@@ -144,8 +144,8 @@ impl<'a> LinuxLoader<'a> {
                 implied_ph = start;
             }
 
-            min_start_vpn = min_start_vpn.min(start.to_floor_page_num());
-            max_end_vpn = max_end_vpn.max(end.to_floor_page_num());
+            min_start_vpn = min_start_vpn.min(start_page);
+            max_end_vpn = max_end_vpn.max(end_page);
 
             let mut segment_permissions = GenericMappingFlags::User | GenericMappingFlags::Kernel;
 
@@ -161,10 +161,10 @@ impl<'a> LinuxLoader<'a> {
                 segment_permissions |= GenericMappingFlags::Executable;
             }
 
-            let page_range = VirtualPageNumRange::from_start_end(
-                start.to_floor_page_num(),
-                end.to_ceil_page_num(), // end is exclusive
-            );
+            let page_range = VirtPageRange::from_start_end(
+                start_page, end_page, // end is exclusive
+            )
+            .unwrap();
 
             memory_space.alloc_and_map_area(MappingArea::new(
                 page_range,
@@ -177,7 +177,7 @@ impl<'a> LinuxLoader<'a> {
             fn copy_elf_segment(
                 elf: &[u8],
                 ph: &ProgramHeader,
-                vaddr: VirtualAddress,
+                vaddr: VirtAddr,
                 mmu: &Arc<SpinMutex<dyn IMMU>>,
             ) -> Result<(), LoadError> {
                 let file_sz = ph.file_size() as usize;
@@ -205,15 +205,9 @@ impl<'a> LinuxLoader<'a> {
             // TODO
         }
 
-        // TODO: investigate this, certain section starts with the va of 0
-        // e.g. testcase basic brk
-        // debug_assert!(min_start_vpn > VirtualPageNum::from_usize(0));
-        min_start_vpn = min_start_vpn.max(VirtualPageNum(1));
+        debug_assert!(min_start_vpn.page_num() > 0);
 
-        attr.elf_area = VirtualAddressRange::from_start_end(
-            min_start_vpn.start_addr(),
-            max_end_vpn.start_addr(),
-        );
+        attr.elf_area = VirtAddrRange::new(min_start_vpn.addr(), max_end_vpn.addr());
 
         log::debug!("Elf segments loaded, max_end_vpn: {max_end_vpn:?}");
 
@@ -221,7 +215,7 @@ impl<'a> LinuxLoader<'a> {
             phdr = implied_ph + elf_info.header.pt2.ph_offset() as usize
         }
 
-        ctx.auxv.insert(AuxVecKey::AT_PHDR, phdr.as_usize());
+        ctx.auxv.insert(AuxVecKey::AT_PHDR, *phdr);
         ctx.auxv.insert(
             AuxVecKey::AT_PHENT,
             elf_info.header.pt2.ph_entry_size() as usize,
@@ -242,19 +236,18 @@ impl<'a> LinuxLoader<'a> {
 
         max_end_vpn += 1;
         memory_space.alloc_and_map_area(MappingArea::new(
-            VirtualPageNumRange::from_single(max_end_vpn),
+            VirtPageRange::new(max_end_vpn, 1),
             AreaType::UserStackGuardBase,
             MapType::Framed,
             GenericMappingFlags::empty(),
             None,
         ));
-        attr.stack_guard_base =
-            VirtualAddressRange::from_start_len(max_end_vpn.start_addr(), constants::PAGE_SIZE);
+        attr.stack_guard_base = max_end_vpn.as_range();
 
         let stack_page_count = constants::USER_STACK_SIZE / constants::PAGE_SIZE;
         max_end_vpn += 1;
         memory_space.alloc_and_map_area(MappingArea::new(
-            VirtualPageNumRange::from_start_count(max_end_vpn, stack_page_count),
+            VirtPageRange::new(max_end_vpn, stack_page_count),
             AreaType::UserStack,
             MapType::Framed,
             GenericMappingFlags::User
@@ -262,26 +255,22 @@ impl<'a> LinuxLoader<'a> {
                 .union(GenericMappingFlags::Writable),
             None,
         ));
-        attr.stack_range = VirtualAddressRange::from_start_len(
-            max_end_vpn.start_addr(),
-            constants::USER_STACK_SIZE,
-        );
+        attr.stack_range = max_end_vpn.as_range();
 
         max_end_vpn += stack_page_count;
-        let stack_top = max_end_vpn.start_addr();
+        let stack_top = max_end_vpn.addr();
         memory_space.alloc_and_map_area(MappingArea::new(
-            VirtualPageNumRange::from_single(max_end_vpn),
+            VirtPageRange::new(max_end_vpn, 1),
             AreaType::UserStackGuardTop,
             MapType::Framed,
             GenericMappingFlags::empty(),
             None,
         ));
-        attr.stack_guard_top =
-            VirtualAddressRange::from_start_len(max_end_vpn.start_addr(), constants::PAGE_SIZE);
+        attr.stack_guard_top = max_end_vpn.as_range();
 
         max_end_vpn += 1;
         memory_space.alloc_and_map_area(MappingArea::new(
-            VirtualPageNumRange::from_start_count(max_end_vpn, 0),
+            VirtPageRange::new(max_end_vpn, 0),
             AreaType::UserBrk,
             MapType::Framed,
             GenericMappingFlags::User
@@ -296,29 +285,22 @@ impl<'a> LinuxLoader<'a> {
             .find(|(_, area)| area.area_type == AreaType::UserBrk)
             .expect("UserBrk area not found")
             .0;
-        attr.brk_start = max_end_vpn.start_addr();
+        attr.brk_start = max_end_vpn.addr();
 
         // FIXME: handle cases where there is a interpreter
-        let entry_pc =
-            VirtualAddress::from_usize(elf_info.header.pt2.entry_point() as usize) + pie_offset;
+        let entry_pc = VirtAddr::new(elf_info.header.pt2.entry_point() as usize) + pie_offset;
 
         #[cfg(debug_assertions)]
         {
             for area in memory_space.mappings() {
-                let start = area.range.start().start_addr();
-                let end = area.range.end().start_addr();
-
                 let area_type = area.area_type;
+                let area_range = area.range;
 
-                log::trace!("{area_type:?}: {start}..{end}");
+                log::trace!("{area_type:?}: {area_range:?}");
             }
 
             let trampoline_page = attr.signal_trampoline;
-            log::trace!(
-                "SignalTrampoline: {}..{}",
-                trampoline_page.start_addr(),
-                trampoline_page.end_addr()
-            );
+            log::trace!("SignalTrampoline: {trampoline_page:?}");
         }
 
         unsafe {

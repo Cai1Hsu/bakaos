@@ -10,7 +10,6 @@ log = "0.4"
 hermit-sync = "0.1.6"
 constants = { path = "../constants", default-features = false }
 address = { path = "../address", default-features = false }
-abstractions = { path = "../abstractions", default-features = false }
 mmu-abstractions = { path = "../mmu-abstractions" }
 allocation-abstractions = { path = "../allocation-abstractions", default-features = false }
 

@@ -26,7 +26,7 @@ macro_rules! impl_addr {
             ///
             /// # Examples
             /// ```
-            /// # use address_v2::PhysAddr;
+            /// # use address::PhysAddr;
             /// let addr = PhysAddr::new(0x1234);
             /// let aligned = addr.align_down(0x1000);
             /// assert_eq!(*aligned, 0x1000);
@@ -50,7 +50,7 @@ macro_rules! impl_addr {
             ///
             /// # Examples
             /// ```
-            /// # use address_v2::PhysAddr;
+            /// # use address::PhysAddr;
             /// let addr = PhysAddr::new(0x1234);
             /// let aligned = addr.align_up(0x1000);
             /// assert_eq!(*aligned, 0x2000);
@@ -70,7 +70,7 @@ macro_rules! impl_addr {
             ///
             /// # Examples
             /// ```
-            /// # use address_v2::PhysAddr;
+            /// # use address::PhysAddr;
             /// let addr = PhysAddr::new(0x1000);
             /// assert!(addr.is_aligned(0x1000));
             /// assert!(!addr.is_aligned(0x2000));
@@ -90,7 +90,7 @@ macro_rules! impl_addr {
             ///
             /// # Examples
             /// ```
-            /// # use address_v2::PhysAddr;
+            /// # use address::PhysAddr;
             /// let addr = PhysAddr::new(0x1234);
             /// assert_eq!(addr.offset_from_alignment(0x1000), 0x234);
             /// ```
@@ -187,6 +187,15 @@ macro_rules! impl_addr {
             }
         }
 
+        impl const ::core::ops::Add<i32> for $type {
+            type Output = Self;
+
+            #[inline(always)]
+            fn add(self, rhs: i32) -> Self::Output {
+                self.add(rhs as isize)
+            }
+        }
+
         impl const ::core::ops::Sub<usize> for $type {
             type Output = Self;
 
@@ -202,6 +211,15 @@ macro_rules! impl_addr {
             #[inline(always)]
             fn sub(self, rhs: isize) -> Self::Output {
                 Self((self.0 as isize - rhs) as usize)
+            }
+        }
+
+        impl const ::core::ops::Sub<i32> for $type {
+            type Output = Self;
+
+            #[inline(always)]
+            fn sub(self, rhs: i32) -> Self::Output {
+                self.sub(rhs as isize)
             }
         }
 
@@ -237,6 +255,13 @@ macro_rules! impl_addr {
             }
         }
 
+        impl ::core::ops::AddAssign<i32> for $type {
+            #[inline(always)]
+            fn add_assign(&mut self, rhs: i32) {
+                self.add_assign(rhs as isize)
+            }
+        }
+
         impl ::core::ops::SubAssign<usize> for $type {
             #[inline(always)]
             fn sub_assign(&mut self, rhs: usize) {
@@ -248,6 +273,13 @@ macro_rules! impl_addr {
             #[inline(always)]
             fn sub_assign(&mut self, rhs: isize) {
                 self.0 = (self.0 as isize - rhs) as usize;
+            }
+        }
+
+        impl ::core::ops::SubAssign<i32> for $type {
+            #[inline(always)]
+            fn sub_assign(&mut self, rhs: i32) {
+                self.sub_assign(rhs as isize)
             }
         }
 
@@ -440,12 +472,16 @@ macro_rules! impl_addr {
                 assert_eq!(addr + 0x100usize, $type::new(0x1100));
                 assert_eq!(addr + 0x100isize, $type::new(0x1100));
                 assert_eq!(addr + (-0x100isize), $type::new(0xf00));
+                assert_eq!(addr + 0x100i32, $type::new(0x1100));
+                assert_eq!(addr + (-0x100i32), $type::new(0xf00));
                 assert_eq!(addr + $type::new(0x500), $type::new(0x1500));
 
                 // Test subtraction
                 assert_eq!(addr - 0x100usize, $type::new(0xf00));
                 assert_eq!(addr - 0x100isize, $type::new(0xf00));
                 assert_eq!(addr - (-0x100isize), $type::new(0x1100));
+                assert_eq!(addr - 0x100i32, $type::new(0xf00));
+                assert_eq!(addr - (-0x100i32), $type::new(0x1100));
 
                 // Test address difference
                 let addr2 = $type::new(0x2000);
@@ -471,6 +507,12 @@ macro_rules! impl_addr {
 
                 addr -= (-0x100isize);
                 assert_eq!(addr, $type::new(0x1100));
+
+                addr += 0x100; // i32
+                assert_eq!(addr, $type::new(0x1200));
+
+                addr -= 0x200;
+                assert_eq!(addr, $type::new(0x1000));
             }
 
             #[test]

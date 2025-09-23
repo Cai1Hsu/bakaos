@@ -70,6 +70,57 @@ use core::{
     ops::{Deref, DerefMut},
 };
 
+/// Creates a new [`InvokeOnDrop`] guard that invokes the provided closure when dropped.
+///
+/// This macro is recommended over calling [`InvokeOnDrop::new`] or [`InvokeOnDrop::transform`] directly,
+/// as it ensures the closure is always inlined, preventing potential performance overhead.
+///
+/// # Returns
+///
+/// Returns a new [`InvokeOnDrop`] guard instance.
+///
+/// # Examples
+/// ```
+/// # use utilities::invoke_on_drop;
+/// // Create a guard that invokes a closure when dropped
+/// let _guard = invoke_on_drop!(|| {
+///     println!("Cleanup executed!");
+/// });
+///
+/// // Wrap a owned value and invoke a closure with it when dropped
+/// let value = String::from("Hello, world!");
+/// let guard = invoke_on_drop!(value, |val| {
+///    println!("Cleaning up value: {}", val);
+/// });
+///
+/// // `InvokeOnDrop` implements `Deref`, so you can access the inner value directly
+/// println!("Guarded value: {}", &*guard);
+/// ```
+#[macro_export]
+macro_rules! invoke_on_drop {
+    ($(#[$attr:meta])* || $body:block) => {{
+        $crate::InvokeOnDrop::new(
+            $(#[$attr])*
+            #[inline(always)]
+            |_| $body,
+        )
+    }};
+    ($(#[$attr:meta])* move || $body:block) => {{
+        $crate::InvokeOnDrop::new(
+            $(#[$attr])*
+            #[inline(always)]
+            move |_| $body,
+        )
+    }};
+    ($val:expr, $func:expr) => {{
+        $crate::InvokeOnDrop::transform(
+            $val,
+            #[inline(always)]
+            $func,
+        )
+    }};
+}
+
 /// A RAII guard that automatically invokes a closure when dropped.
 ///
 /// `InvokeOnDrop` provides a way to ensure that cleanup code is executed when a value
@@ -374,14 +425,12 @@ mod tests {
     use core::hint::black_box;
     use std::sync::{Arc, Mutex};
 
-    use super::*;
-
     #[test]
     fn test_drop_invoked() {
         let flag = Arc::new(Mutex::new(false));
 
         {
-            let _called = InvokeOnDrop::new(|_| {
+            let _called = invoke_on_drop!(|| {
                 *flag.lock().unwrap() = true;
             });
 
@@ -396,7 +445,7 @@ mod tests {
         let flag = Arc::new(Mutex::new(false));
 
         // Bind to a local so Drop doesn't run before the assertion
-        let _unused = InvokeOnDrop::new(|_| {
+        let _unused = invoke_on_drop!(|| {
             *flag.lock().unwrap() = true;
         });
 
@@ -405,7 +454,7 @@ mod tests {
 
     #[test]
     fn test_transform() {
-        let i = InvokeOnDrop::transform(42, |i| {
+        let i = invoke_on_drop!(42, |i| {
             assert_eq!(i, 42);
         });
 
@@ -415,7 +464,7 @@ mod tests {
 
     #[test]
     fn test_deref() {
-        let mut i = InvokeOnDrop::transform(42, |i| {
+        let mut i = invoke_on_drop!(42, |i| {
             assert_eq!(i, 24);
         });
 
@@ -431,7 +480,7 @@ mod tests {
         let x = Arc::new(());
 
         let cloned = x.clone();
-        let guard = InvokeOnDrop::new(|_| {
+        let guard = invoke_on_drop!(|| {
             black_box(cloned);
         });
 

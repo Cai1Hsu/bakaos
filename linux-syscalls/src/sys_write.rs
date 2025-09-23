@@ -1,12 +1,12 @@
 use crate::{SyscallContext, SyscallResult};
-use address::VirtualAddress;
+use address::VirtAddr;
 use alloc::sync::Arc;
 use constants::ErrNo;
 use filesystem_abstractions::IFile;
 use threading::yield_now;
 
 impl SyscallContext {
-    pub async fn sys_write(&self, fd: usize, buf: VirtualAddress, count: usize) -> SyscallResult {
+    pub async fn sys_write(&self, fd: usize, buf: VirtAddr, count: usize) -> SyscallResult {
         log::debug!("sys_write: fd: {}, buf: {}, count: {}", fd, buf, count);
 
         let file = {
@@ -27,7 +27,7 @@ impl SyscallContext {
     async fn sys_write_internal(
         &self,
         file: Arc<dyn IFile>,
-        buf: VirtualAddress,
+        buf: VirtAddr,
         count: usize,
     ) -> SyscallResult {
         while !file.write_avaliable() {
@@ -54,8 +54,7 @@ mod tests {
     };
     use std::sync::Mutex;
 
-    use abstractions::IUsizeAlias;
-    use address::{IAddressBase, VirtualAddress};
+    use address::VirtAddr;
     use alloc::vec::Vec;
     use allocation_abstractions::IFrameAllocator;
     use filesystem_abstractions::FileDescriptorTable;
@@ -165,7 +164,7 @@ mod tests {
         // We decide to map it to 0x1000000
         let frame = alloc.lock().alloc_frame().unwrap();
         let frame = InvokeOnDrop::transform(frame, |f| alloc.lock().dealloc(f));
-        let ptr = VirtualAddress::from_usize(0x1000000);
+        let ptr = VirtAddr::new(0x1000000);
         mmu.lock()
             .map_single(
                 ptr,
@@ -179,7 +178,7 @@ mod tests {
         // We will write directly to the frame.
         let content = b"Hello, world";
         {
-            let ptr = frame.0.as_usize() as *mut u8;
+            let ptr = *frame.0 as *mut u8;
             let buf = unsafe { core::slice::from_raw_parts_mut(ptr, 4096) };
 
             buf[..content.len()].copy_from_slice(content);
@@ -228,7 +227,7 @@ mod tests {
 
         let ctx = SyscallContext::new(task, kernel);
 
-        let ret = block_on!(ctx.sys_write(0, VirtualAddress::null(), 0));
+        let ret = block_on!(ctx.sys_write(0, VirtAddr::null, 0));
 
         assert_eq!(ret, Err(ErrNo::BadAddress));
     }
@@ -259,7 +258,7 @@ mod tests {
 
         let ctx = SyscallContext::new(task, kernel);
 
-        let ret = block_on!(ctx.sys_write(0, VirtualAddress::null(), 0));
+        let ret = block_on!(ctx.sys_write(0, VirtAddr::null, 0));
 
         assert_eq!(ret, Err(ErrNo::BadFileDescriptor));
     }

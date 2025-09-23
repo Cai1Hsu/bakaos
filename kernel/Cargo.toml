@@ -23,7 +23,6 @@ linux-task = { path = "dependencies/libraries/linux-task" }
 mmu-native = { path = "dependencies/libraries/mmu-native" }
 threading = { path = "dependencies/libraries/threading" }
 address = { path = "dependencies/libraries/address" }
-abstractions = { path = "dependencies/libraries/abstractions" }
 global_heap = { path = "dependencies/libraries/global_heap" }
 buddy_system_allocator = { git = "https://github.com/neuq-rcore/buddy_system_allocator" }
 

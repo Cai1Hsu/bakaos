@@ -17,10 +17,10 @@
 //!
 //! ```rust,ignore
 //! use stream::{IMMUStreamExt, MemoryStream};
-//! use address::VirtualAddress;
+//! use address::VirtAddr;
 //!
 //! // Create a read-only memory stream
-//! let stream = mmu.create_stream(VirtualAddress::from_usize(0x1000), false);
+//! let stream = mmu.create_stream(VirtAddr::new(0x1000), false);
 //!
 //! // Read a single value
 //! let value: &i32 = stream.read()?;
@@ -33,10 +33,10 @@
 //!
 //! ```rust,ignore
 //! use stream::{IMMUStreamExt, MemoryStreamMut};
-//! use address::VirtualAddress;
+//! use address::VirtAddr;
 //!
 //! // Create a read-write memory stream
-//! let mut stream = mmu.create_stream_mut(VirtualAddress::from_usize(0x1000), false);
+//! let mut stream = mmu.create_stream_mut(VirtAddr::new(0x1000), false);
 //!
 //! // Write a single value
 //! *stream.write::<i32>()? = 42;
@@ -70,8 +70,7 @@ extern crate alloc;
 
 use core::{cell::UnsafeCell, mem::MaybeUninit, ptr::NonNull};
 
-use abstractions::operations::IUsizeAlias;
-use address::{VirtualAddress, VirtualAddressRange};
+use address::{VirtAddr, VirtAddrRange};
 use alloc::vec::Vec;
 
 use mmu_abstractions::{GenericMappingFlags, MMUError, PageSize, IMMU};
@@ -86,13 +85,13 @@ use mmu_abstractions::{GenericMappingFlags, MMUError, PageSize, IMMU};
 ///
 /// ```rust,ignore
 /// use stream::IMMUStreamExt;
-/// use address::VirtualAddress;
+/// use address::VirtAddr;
 ///
 /// // Create a read-only stream
-/// let stream = mmu.create_stream(VirtualAddress::from_usize(0x1000), false);
+/// let stream = mmu.create_stream(VirtAddr::new(0x1000), false);
 ///
 /// // Create a read-write stream
-/// let mut_stream = mmu.create_stream_mut(VirtualAddress::from_usize(0x1000), true);
+/// let mut_stream = mmu.create_stream_mut(VirtAddr::new(0x1000), true);
 /// ```
 pub trait IMMUStreamExt: IMMU {
     /// Creates a read-only memory stream.
@@ -105,7 +104,7 @@ pub trait IMMUStreamExt: IMMU {
     /// # Returns
     ///
     /// A new `MemoryStream` instance for reading operations
-    fn create_stream<'a>(&'a self, cursor: VirtualAddress, keep_buffer: bool) -> MemoryStream<'a>;
+    fn create_stream<'a>(&'a self, cursor: VirtAddr, keep_buffer: bool) -> MemoryStream<'a>;
 
     /// Creates a cross-MMU read-only memory stream.
     ///
@@ -125,7 +124,7 @@ pub trait IMMUStreamExt: IMMU {
     fn create_cross_stream<'a>(
         &'a mut self,
         src: &'a dyn IMMU,
-        cursor: VirtualAddress,
+        cursor: VirtAddr,
         keep_buffer: bool,
     ) -> MemoryStream<'a>;
 
@@ -139,11 +138,7 @@ pub trait IMMUStreamExt: IMMU {
     /// # Returns
     ///
     /// A new `MemoryStreamMut` instance for reading and writing operations
-    fn create_stream_mut<'a>(
-        &'a self,
-        cursor: VirtualAddress,
-        keep_buffer: bool,
-    ) -> MemoryStreamMut<'a>;
+    fn create_stream_mut<'a>(&'a self, cursor: VirtAddr, keep_buffer: bool) -> MemoryStreamMut<'a>;
 
     /// Creates a cross-MMU read-write memory stream.
     ///
@@ -163,36 +158,32 @@ pub trait IMMUStreamExt: IMMU {
     fn create_cross_stream_mut<'a>(
         &'a mut self,
         src: &'a dyn IMMU,
-        cursor: VirtualAddress,
+        cursor: VirtAddr,
         keep_buffer: bool,
     ) -> MemoryStreamMut<'a>;
 }
 
 impl IMMUStreamExt for dyn IMMU {
-    fn create_stream<'a>(&'a self, cursor: VirtualAddress, keep_buffer: bool) -> MemoryStream<'a> {
+    fn create_stream<'a>(&'a self, cursor: VirtAddr, keep_buffer: bool) -> MemoryStream<'a> {
         MemoryStream::new(self, cursor, keep_buffer)
     }
 
     fn create_cross_stream<'a>(
         &'a mut self,
         src: &'a dyn IMMU,
-        cursor: VirtualAddress,
+        cursor: VirtAddr,
         keep_buffer: bool,
     ) -> MemoryStream<'a> {
         MemoryStream::new_cross(self, src, cursor, keep_buffer)
     }
-    fn create_stream_mut<'a>(
-        &'a self,
-        cursor: VirtualAddress,
-        keep_buffer: bool,
-    ) -> MemoryStreamMut<'a> {
+    fn create_stream_mut<'a>(&'a self, cursor: VirtAddr, keep_buffer: bool) -> MemoryStreamMut<'a> {
         MemoryStreamMut::new(self, cursor, keep_buffer)
     }
 
     fn create_cross_stream_mut<'a>(
         &'a mut self,
         src: &'a dyn IMMU,
-        cursor: VirtualAddress,
+        cursor: VirtAddr,
         keep_buffer: bool,
     ) -> MemoryStreamMut<'a> {
         MemoryStreamMut::new_cross(self, src, cursor, keep_buffer)
@@ -208,10 +199,10 @@ impl IMMUStreamExt for dyn IMMU {
 ///
 /// ```rust,ignore
 /// use stream::Whence;
-/// use address::VirtualAddress;
+/// use address::VirtAddr;
 ///
 /// // Seek to absolute address
-/// stream.seek(Whence::Set(VirtualAddress::from_usize(0x2000)));
+/// stream.seek(Whence::Set(VirtAddr::new(0x2000)));
 ///
 /// // Seek forward by 100 bytes
 /// stream.seek(Whence::Offset(100));
@@ -225,7 +216,7 @@ pub enum Whence {
     ///
     /// The cursor will be positioned exactly at the specified address,
     /// regardless of its current position.
-    Set(VirtualAddress),
+    Set(VirtAddr),
 
     /// Move the cursor by a relative offset from its current position.
     ///
@@ -258,7 +249,7 @@ enum WindowCheckResult {
     Reuse,
     /// The window needs to be remapped with the specified parameters
     /// (access_level, base_address, size, has_overlaps)
-    Remap(MemoryAccess, VirtualAddress, PageSize, bool),
+    Remap(MemoryAccess, VirtAddr, PageSize, bool),
 }
 
 /// Manages the current memory window and cursor position for a stream.
@@ -268,7 +259,7 @@ enum WindowCheckResult {
 /// window management.
 struct MemoryWindow {
     /// Current cursor position in virtual memory
-    cursor: VirtualAddress,
+    cursor: VirtAddr,
     /// Currently mapped memory window, if any
     window: Option<MappedWindow>,
 }
@@ -287,7 +278,7 @@ impl MemoryWindow {
     ///
     /// The new cursor position after skipping
     #[inline]
-    pub fn skip(&mut self, len: usize) -> VirtualAddress {
+    pub fn skip(&mut self, len: usize) -> VirtAddr {
         self.seek(Whence::Offset(len as isize))
     }
 
@@ -301,12 +292,12 @@ impl MemoryWindow {
     ///
     /// The new cursor position after seeking
     #[inline]
-    pub fn seek(&mut self, whence: Whence) -> VirtualAddress {
+    pub fn seek(&mut self, whence: Whence) -> VirtAddr {
         let target = match whence {
             Whence::Set(offset) => offset,
-            Whence::Offset(off) => VirtualAddress::from_usize(
-                (self.cursor.as_usize() as isize).wrapping_add(off) as usize,
-            ),
+            Whence::Offset(off) => {
+                VirtAddr::new((*self.cursor as isize).wrapping_add(off) as usize)
+            }
         };
 
         self.cursor = target;
@@ -322,7 +313,7 @@ impl MemoryWindow {
 /// It's used internally to track active memory mappings.
 struct MappedWindow {
     /// Base virtual address of the mapped window
-    base: VirtualAddress,
+    base: VirtAddr,
     /// Pointer to the mapped memory region
     ptr: NonNull<u8>,
     /// Length of the mapped region in bytes
@@ -382,7 +373,7 @@ macro_rules! impl_stream {
             /// Internal memory window management
             inner: UnsafeCell<MemoryWindow>,
             /// Optional buffer tracking for deferred unmapping
-            buffer_keep: Option<Vec<VirtualAddress>>,
+            buffer_keep: Option<Vec<VirtAddr>>,
         }
 
         impl<'a> $type<'a> {
@@ -395,7 +386,7 @@ macro_rules! impl_stream {
             /// * `keep_buffer` - Whether to keep the mapped buffer. if false, the mapped buffer
             ///   will be unmap when the cursor moves outside current page. if true, the mapped buffer
             ///   will be unmap when the stream is dropped.
-            pub fn new(mmu: &'a dyn IMMU, cursor: VirtualAddress, keep_buffer: bool) -> Self {
+            pub fn new(mmu: &'a dyn IMMU, cursor: VirtAddr, keep_buffer: bool) -> Self {
                 Self {
                     mmu: MmuComposition::Single(mmu),
                     inner: UnsafeCell::new(MemoryWindow {
@@ -419,7 +410,7 @@ macro_rules! impl_stream {
             pub fn new_cross(
                 mmu: &'a mut dyn IMMU,
                 src: &'a dyn IMMU,
-                cursor: VirtualAddress,
+                cursor: VirtAddr,
                 keep_buffer: bool,
             ) -> Self {
                 let mmu = MmuComposition::Cross {
@@ -450,7 +441,7 @@ macro_rules! impl_stream {
             #[inline]
             fn mmu_map_buffer(
                 &self,
-                cursor: VirtualAddress,
+                cursor: VirtAddr,
                 len: usize,
             ) -> Result<&[u8], MMUError> {
                 match &self.mmu {
@@ -467,7 +458,7 @@ macro_rules! impl_stream {
             #[allow(clippy::mut_from_ref)]
             fn mmu_map_buffer_mut(
                 &self,
-                cursor: VirtualAddress,
+                cursor: VirtAddr,
                 len: usize,
             ) -> Result<&mut [u8], MMUError> {
                 match &self.mmu {
@@ -497,7 +488,7 @@ macro_rules! impl_stream {
             ///
             /// * `len` - The number of bytes to skip.
             #[inline(always)]
-            pub fn skip(&self, len: usize) -> VirtualAddress {
+            pub fn skip(&self, len: usize) -> VirtAddr {
                 self.inner_mut().skip(len)
             }
 
@@ -507,13 +498,13 @@ macro_rules! impl_stream {
             ///
             /// * `whence` - The offset to seek to.
             #[inline(always)]
-            pub fn seek(&mut self, whence: Whence) -> VirtualAddress {
+            pub fn seek(&mut self, whence: Whence) -> VirtAddr {
                 self.inner_mut().seek(whence)
             }
 
             /// Get the current cursor
             #[inline(always)]
-            pub fn cursor(&self) -> VirtualAddress {
+            pub fn cursor(&self) -> VirtAddr {
                 self.inner().cursor
             }
 
@@ -536,7 +527,7 @@ macro_rules! impl_stream {
             }
 
             #[inline]
-            fn unmap(&self, vaddr: VirtualAddress) {
+            fn unmap(&self, vaddr: VirtAddr) {
                 match self.mmu {
                     MmuComposition::Single(mmu) => mmu.unmap_buffer(vaddr),
                     MmuComposition::Cross { ref mmu, src } => {
@@ -556,7 +547,7 @@ macro_rules! impl_stream {
             #[inline]
             fn check_full_range(
                 &self,
-                start: VirtualAddress,
+                start: VirtAddr,
                 len: usize,
                 required: MemoryAccess,
             ) -> Result<WindowCheckResult, MMUError> {
@@ -570,11 +561,11 @@ macro_rules! impl_stream {
                 let mut overlaps = false;
 
                 if let Some(window) = self.inner().window.as_ref() {
-                    let window_range = VirtualAddressRange::from_start_len(window.base, window.len);
-                    let range = VirtualAddressRange::from_start_len(start, len);
+                    let window_range = VirtAddrRange::from_start_len(window.base, window.len);
+                    let range = VirtAddrRange::from_start_len(start, len);
 
                     // contains
-                    if window_range.contains_range(range) {
+                    if window_range.contains(range) {
                         return ensure_access(start, window.access, required)
                             .map(|_| WindowCheckResult::Reuse);
                     }
@@ -601,14 +592,13 @@ macro_rules! impl_stream {
                     let sz = size.as_usize();
 
                     if base.is_none() {
-                        base = Some(VirtualAddress::from_usize(cur.as_usize() / sz * sz));
+                        base = Some(cur.align_down(sz));
                     }
 
                     total_size = PageSize::from(total_size.as_usize() + sz);
 
-                    let cur_u = cur.as_usize();
-                    let off_in_page = cur_u % sz;
-                    let step = core::cmp::min(sz - off_in_page, end.as_usize() - cur_u);
+                    let off_in_page = cur.offset_from_alignment(sz);
+                    let step = core::cmp::min(sz - off_in_page, *end - *cur);
 
                     cur += step;
                 }
@@ -640,7 +630,7 @@ macro_rules! impl_stream {
                 let bytes = len.checked_mul(size_of::<T>()).unwrap();
                 let cursor = self.cursor();
 
-                if (cursor.as_usize() % align_of::<T>()) != 0 {
+                if !cursor.is_aligned(align_of::<T>()) {
                     return Err(MMUError::MisalignedAddress);
                 }
 
@@ -649,7 +639,7 @@ macro_rules! impl_stream {
                     WindowCheckResult::Reuse => {
                         let window = self.inner().window.as_ref().unwrap();
 
-                        let offset = cursor.as_usize() - window.base.as_usize();
+                        let offset = *cursor - *window.base;
                         let ptr = unsafe { window.ptr.add(offset).cast() };
 
                         (ptr, len)
@@ -693,7 +683,7 @@ macro_rules! impl_stream {
 
                         // The mapped buffer may be the whole page,
                         // so we need to calculate the offset.
-                        let idx = (self.cursor().as_usize() - base.as_usize())
+                        let idx = (*self.cursor() - *base)
                             / core::mem::size_of::<T>();
 
                         (unsafe { ptr.cast().add(idx) }, len)
@@ -793,7 +783,7 @@ macro_rules! impl_stream {
                 let cursor = self.cursor();
                 let size = core::mem::size_of::<T>();
 
-                if cursor.as_usize() % core::mem::align_of::<T>() != 0 {
+                if !cursor.is_aligned(core::mem::align_of::<T>()) {
                     return Err(MMUError::MisalignedAddress);
                 }
 
@@ -1045,7 +1035,7 @@ const fn flags_to_access(flags: GenericMappingFlags) -> MemoryAccess {
 /// `Ok(())` if access is sufficient, or an appropriate `MMUError` if not
 #[inline(always)]
 fn ensure_access(
-    vaddr: VirtualAddress,
+    vaddr: VirtAddr,
     existing: MemoryAccess,
     required: MemoryAccess,
 ) -> Result<(), MMUError> {
@@ -1084,22 +1074,22 @@ mod tests {
     }
 
     // Helper: create a test memory scene with read/write mapping
-    fn test_scene(action: impl FnOnce(Arc<SpinMutex<dyn IMMU>>, VirtualAddress, usize)) {
+    fn test_scene(action: impl FnOnce(Arc<SpinMutex<dyn IMMU>>, VirtAddr, usize)) {
         let (alloc, mmu) = create_alloc_mmu();
 
         let frames = alloc.lock().alloc_contiguous(10).unwrap();
         let frames = InvokeOnDrop::transform(frames, |f| alloc.lock().dealloc_range(f));
 
-        let len = frames.end.as_usize() - frames.start.as_usize();
+        let len = frames.as_addr_range().len();
 
         let page_size = len / 10;
-        let base = VirtualAddress::from_usize(0x10000);
+        let base = VirtAddr::new(0x10000);
 
         for i in 0..10 {
             mmu.lock()
                 .map_single(
                     base + i * page_size,
-                    frames.start + i * page_size,
+                    frames.start().addr() + i * page_size,
                     PageSize::from(page_size),
                     GenericMappingFlags::User
                         | GenericMappingFlags::Readable
@@ -1112,21 +1102,21 @@ mod tests {
     }
 
     // Helper: create a test memory scene with readonly mapping
-    fn test_scene_readonly(action: impl FnOnce(Arc<SpinMutex<dyn IMMU>>, VirtualAddress, usize)) {
+    fn test_scene_readonly(action: impl FnOnce(Arc<SpinMutex<dyn IMMU>>, VirtAddr, usize)) {
         let (alloc, mmu) = create_alloc_mmu();
 
         let frames = alloc.lock().alloc_contiguous(10).unwrap();
         let frames = InvokeOnDrop::transform(frames, |f| alloc.lock().dealloc_range(f));
 
-        let len = frames.end.as_usize() - frames.start.as_usize();
+        let len = frames.as_addr_range().len();
 
         let page_size = len / 10;
-        let base = VirtualAddress::from_usize(0x10000);
+        let base = VirtAddr::new(0x10000);
         for i in 0..10 {
             mmu.lock()
                 .map_single(
                     base + i * page_size,
-                    frames.start + i * page_size,
+                    frames.start().addr() + i * page_size,
                     PageSize::from(page_size),
                     GenericMappingFlags::User | GenericMappingFlags::Readable,
                 )
@@ -1325,19 +1315,19 @@ mod tests {
         let frames2 = alloc2.lock().alloc_contiguous(5).unwrap();
         let frames2 = InvokeOnDrop::transform(frames2, |f| alloc2.lock().dealloc_range(f));
 
-        let len1 = frames1.end.as_usize() - frames1.start.as_usize();
-        let len2 = frames2.end.as_usize() - frames2.start.as_usize();
+        let len1 = frames1.as_addr_range().len();
+        let len2 = frames2.as_addr_range().len();
 
         let page_size1 = len1 / 5;
         let page_size2 = len2 / 5;
-        let base1 = VirtualAddress::from_usize(0x10000);
-        let base2 = VirtualAddress::from_usize(0x20000);
+        let base1 = VirtAddr::new(0x10000);
+        let base2 = VirtAddr::new(0x20000);
 
         for i in 0..5 {
             mmu1.lock()
                 .map_single(
                     base1 + i * page_size1,
-                    frames1.start + i * page_size1,
+                    frames1.start().addr() + i * page_size1,
                     PageSize::from(page_size1),
                     GenericMappingFlags::User
                         | GenericMappingFlags::Readable
@@ -1350,7 +1340,7 @@ mod tests {
             mmu2.lock()
                 .map_single(
                     base2 + i * page_size2,
-                    frames2.start + i * page_size2,
+                    frames2.start().addr() + i * page_size2,
                     PageSize::from(page_size2),
                     GenericMappingFlags::User
                         | GenericMappingFlags::Readable
@@ -1402,7 +1392,7 @@ mod tests {
             let mmu = mmu.lock();
 
             let mut stream = mmu.create_stream(base, false);
-            stream.seek(Whence::Set(VirtualAddress::from_usize(0x10000000)));
+            stream.seek(Whence::Set(VirtAddr::new(0x10000000)));
 
             let result = stream.read::<i32>();
             assert!(matches!(result, Err(MMUError::InvalidAddress)));
@@ -1584,13 +1574,13 @@ mod tests {
             };
 
             for i in 0..100 {
-                mmu.export::<i32>(base + i * 4, i as i32).unwrap();
+                mmu.export::<i32>(base + i * 4, i).unwrap();
             }
 
             // Assert that the data is correctly written
             for i in 0..10 {
                 let val = mmu.import::<i32>(base + i * 4).unwrap();
-                assert_eq!(val, i as i32);
+                assert_eq!(val, i);
             }
 
             let mut stream = mmu.create_stream(base, false);
@@ -1843,7 +1833,7 @@ mod tests {
             let mut stream = mmu.create_stream_mut(base, false);
 
             // Seek to invalid address
-            stream.seek(Whence::Set(VirtualAddress::from_usize(0x10000000)));
+            stream.seek(Whence::Set(VirtAddr::new(0x10000000)));
 
             let result = stream.write::<i32>();
             assert!(matches!(result, Err(MMUError::InvalidAddress)));
@@ -1888,19 +1878,19 @@ mod tests {
         let frames2 = alloc2.lock().alloc_contiguous(5).unwrap();
         let frames2 = InvokeOnDrop::transform(frames2, |f| alloc2.lock().dealloc_range(f));
 
-        let len1 = frames1.end.as_usize() - frames1.start.as_usize();
-        let len2 = frames2.end.as_usize() - frames2.start.as_usize();
+        let len1 = frames1.as_addr_range().len();
+        let len2 = frames2.as_addr_range().len();
 
         let page_size1 = len1 / 5;
         let page_size2 = len2 / 5;
-        let base1 = VirtualAddress::from_usize(0x10000);
-        let base2 = VirtualAddress::from_usize(0x20000);
+        let base1 = VirtAddr::new(0x10000);
+        let base2 = VirtAddr::new(0x20000);
 
         for i in 0..5 {
             mmu1.lock()
                 .map_single(
                     base1 + i * page_size1,
-                    frames1.start + i * page_size1,
+                    frames1.start().addr() + i * page_size1,
                     PageSize::from(page_size1),
                     GenericMappingFlags::User
                         | GenericMappingFlags::Readable
@@ -1913,7 +1903,7 @@ mod tests {
             mmu2.lock()
                 .map_single(
                     base2 + i * page_size2,
-                    frames2.start + i * page_size2,
+                    frames2.start().addr() + i * page_size2,
                     PageSize::from(page_size2),
                     GenericMappingFlags::User
                         | GenericMappingFlags::Readable
@@ -1953,7 +1943,7 @@ mod tests {
             // Verify the written data after dropping the stream
             for i in 0..100 {
                 let val = mmu.import::<i32>(base + i * 4).unwrap();
-                assert_eq!(val, i as i32);
+                assert_eq!(val, i);
             }
         });
     }

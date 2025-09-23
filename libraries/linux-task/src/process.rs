@@ -7,7 +7,6 @@ use alloc::{
     vec::Vec,
 };
 
-use abstractions::operations::IUsizeAlias;
 use filesystem_abstractions::FileDescriptorTable;
 use hermit_sync::SpinMutex;
 use linux_loader::LinuxLoader;
@@ -170,10 +169,10 @@ impl ILinuxProcess for LinuxProcess {
 
 fn create_task_context(loader: &LinuxLoader) -> TaskTrapContext {
     TaskTrapContext::new(
-        loader.entry_pc.as_usize(),
-        loader.stack_top.as_usize(),
+        *loader.entry_pc,
+        *loader.stack_top,
         loader.ctx.argv.len(),
-        loader.argv_base.as_usize(),
-        loader.envp_base.as_usize(),
+        *loader.argv_base,
+        *loader.envp_base,
     )
 }

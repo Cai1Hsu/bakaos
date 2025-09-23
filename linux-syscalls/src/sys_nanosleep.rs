@@ -1,4 +1,4 @@
-use address::VirtualAddress;
+use address::VirtAddr;
 use constants::ErrNo;
 use threading::yield_now;
 use timing::TimeSpec;
@@ -6,7 +6,7 @@ use timing::TimeSpec;
 use crate::{SyscallContext, SyscallResult};
 
 impl SyscallContext {
-    pub async fn sys_nanosleep(&self, req: VirtualAddress, rem: VirtualAddress) -> SyscallResult {
+    pub async fn sys_nanosleep(&self, req: VirtAddr, rem: VirtAddr) -> SyscallResult {
         let process = self.task.process();
 
         let req = process
@@ -62,7 +62,6 @@ mod tests {
     use core::time::Duration;
     use std::time::SystemTime;
 
-    use address::IAddressBase;
     use alloc::sync::Arc;
     use hermit_sync::SpinMutex;
     use memory_space::MemorySpace;
@@ -89,7 +88,7 @@ mod tests {
     fn test_syscall_bad_address() {
         let (_, ctx) = setup_syscall_context();
 
-        let ret = block_on!(ctx.sys_nanosleep(VirtualAddress::null(), VirtualAddress::null()));
+        let ret = block_on!(ctx.sys_nanosleep(VirtAddr::null, VirtAddr::null));
 
         assert_eq!(ret, Err(ErrNo::BadAddress));
     }
@@ -103,8 +102,7 @@ mod tests {
         mmu.lock().register(&req, false);
 
         let before_call = SystemTime::now();
-        let ret =
-            block_on!(ctx.sys_nanosleep(VirtualAddress::from_ref(&req), VirtualAddress::null()));
+        let ret = block_on!(ctx.sys_nanosleep(VirtAddr::from(&req), VirtAddr::null));
         let after_call = SystemTime::now();
 
         assert_eq!(ret, Ok(0));
@@ -124,8 +122,7 @@ mod tests {
         mmu.lock().register(&req, false);
 
         let before_call = SystemTime::now();
-        let ret =
-            block_on!(ctx.sys_nanosleep(VirtualAddress::from_ref(&req), VirtualAddress::null()));
+        let ret = block_on!(ctx.sys_nanosleep(VirtAddr::from(&req), VirtAddr::null));
         let after_call = SystemTime::now();
 
         assert_eq!(ret, Ok(0));
@@ -165,8 +162,7 @@ mod tests {
 
         mmu.lock().register(&req, false);
 
-        let ret =
-            block_on!(ctx.sys_nanosleep(VirtualAddress::from_ref(&req), VirtualAddress::null()));
+        let ret = block_on!(ctx.sys_nanosleep(VirtAddr::from(&req), VirtAddr::null));
 
         assert_eq!(ret, Err(ErrNo::InvalidArgument));
     }

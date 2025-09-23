@@ -2,8 +2,7 @@
 #![feature(allocator_api)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use abstractions::operations::IUsizeAlias;
-use address::PhysicalAddress;
+use address::{PhysAddr, PhysPage, PhysPageRange};
 use alloc::vec::Vec;
 use allocation_abstractions::{FrameDesc, FrameRangeDesc, IFrameAllocator};
 
@@ -13,15 +12,15 @@ extern crate std;
 extern crate alloc;
 
 pub struct FrameAllocator {
-    top: PhysicalAddress,
-    bottom: PhysicalAddress,
+    top: PhysAddr,
+    bottom: PhysAddr,
     // current should always point to the last frame that can be allocated
-    current: PhysicalAddress,
-    recycled: Vec<PhysicalAddress>,
+    current: PhysAddr,
+    recycled: Vec<PhysAddr>,
 }
 
 impl FrameAllocator {
-    pub fn new(top: PhysicalAddress, bottom: PhysicalAddress) -> Self {
+    pub fn new(top: PhysAddr, bottom: PhysAddr) -> Self {
         FrameAllocator {
             top,
             bottom,
@@ -30,12 +29,16 @@ impl FrameAllocator {
         }
     }
 
-    pub fn top(&self) -> PhysicalAddress {
-        self.top
+    pub fn top(&self) -> PhysPage {
+        PhysPage::new_4k(self.top).unwrap()
     }
 
-    pub fn bottom(&self) -> PhysicalAddress {
-        self.bottom
+    pub fn bottom(&self) -> PhysPage {
+        PhysPage::new_4k(self.bottom).unwrap()
+    }
+
+    pub fn current(&self) -> PhysPage {
+        PhysPage::new_4k(self.current).unwrap()
     }
 }
 
@@ -56,8 +59,7 @@ impl IFrameAllocator for FrameAllocator {
     fn alloc_frames(&mut self, count: usize) -> Option<Vec<FrameDesc>> {
         let mut frames = Vec::with_capacity(count);
 
-        let avaliable =
-            self.recycled.len() + (self.top - self.bottom).as_usize() / (constants::PAGE_SIZE);
+        let avaliable = self.recycled.len() + self.top().diff_page_count(self.current()) as usize;
 
         match count {
             count if count <= avaliable => {
@@ -91,7 +93,7 @@ impl IFrameAllocator for FrameAllocator {
         // try gc self.current before push to recycled
         // Check if the recycled or ppn can be contiguous
         match self.recycled.last() {
-            Some(last) if *last + 1 == self.current => {
+            Some(last) if *last + constants::PAGE_SIZE == self.current => {
                 let mut new_current = self.current;
 
                 loop {
@@ -114,15 +116,15 @@ impl IFrameAllocator for FrameAllocator {
     }
 
     fn alloc_contiguous(&mut self, count: usize) -> Option<FrameRangeDesc> {
-        let avaliable = (self.top - self.current).as_usize();
+        let avaliable = *self.top - *self.current;
 
         match count {
             count if count < avaliable => {
-                let start = self.current;
-                let len = count * constants::PAGE_SIZE;
-                self.current += len;
+                let range = PhysPageRange::new(PhysPage::new_4k(self.current).unwrap(), count);
 
-                Some(unsafe { FrameRangeDesc::new(start, len) })
+                self.current += range.as_addr_range().len();
+
+                Some(unsafe { FrameRangeDesc::new(range) })
             }
             // Prevent dealloc if we don't have enough frames
             _ => None,
@@ -130,12 +132,10 @@ impl IFrameAllocator for FrameAllocator {
     }
 
     fn dealloc_range(&mut self, range: FrameRangeDesc) {
-        let mut cursor = range.start;
+        for page in range.iter() {
+            debug_assert!(page.size() == constants::PAGE_SIZE);
 
-        while cursor < range.end {
-            self.dealloc(unsafe { FrameDesc::new(cursor) });
-
-            cursor += constants::PAGE_SIZE;
+            self.dealloc(unsafe { FrameDesc::new(page.addr()) });
         }
 
         core::mem::forget(range);
