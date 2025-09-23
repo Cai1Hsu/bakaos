@@ -25,5 +25,23 @@ pub trait IFrameAllocator {
 
     fn check_paddr(&self, paddr: PhysAddrRange) -> bool;
 
+    /// Try to get a slice of the physical address in the linear mapping window.
+    ///
+    /// The slice is guaranteed to be contiguous.
+    ///
+    /// # Parameters
+    ///
+    /// - `paddr`: The physical address range you want to access.
+    ///
+    /// # Returns
+    ///
+    /// - The raw memory slice to the physical address range in the linear mapping window.
+    /// - The return value is `None` if the physical address is not in the linear mapping window.
+    ///   Or if the frame allocator is not responsible for the linear mapping. This method is
+    ///   intended to provide a backend option for MMU.
+    ///
+    /// # Safety
+    ///
+    /// Access raw memory may be dangerous, so use it with caution.
     unsafe fn linear_map(&self, paddr: PhysAddrRange) -> Option<&'static mut [u8]>;
 }
