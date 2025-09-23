@@ -25,6 +25,11 @@ pub trait IKernel: Downcast {
     fn activate_mmu(&self, pt: &dyn IMMU);
 
     fn time(&self) -> TimeSpec;
+
+    fn create_mmu(
+        &self,
+        alloc: Option<Arc<SpinMutex<dyn IFrameAllocator>>>,
+    ) -> Arc<SpinMutex<dyn IMMU>>;
 }
 
 impl_downcast!(IKernel);

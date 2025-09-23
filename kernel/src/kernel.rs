@@ -7,6 +7,7 @@ use kernel_abstractions::{IKernel, IKernelSerial};
 use linux_syscalls::SyscallContext;
 use linux_task_abstractions::ILinuxTask;
 use mmu_abstractions::IMMU;
+use mmu_native::PageTable;
 use timing::TimeSpec;
 
 use crate::serial::KernelSerial;
@@ -52,5 +53,12 @@ impl IKernel for Kernel {
 
     fn time(&self) -> TimeSpec {
         todo!()
+    }
+
+    fn create_mmu(
+        &self,
+        alloc: Option<Arc<SpinMutex<dyn IFrameAllocator>>>,
+    ) -> Arc<SpinMutex<dyn IMMU>> {
+        Arc::new(SpinMutex::new(PageTable::alloc(alloc.unwrap())))
     }
 }
