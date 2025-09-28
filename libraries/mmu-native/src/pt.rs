@@ -324,7 +324,7 @@ impl<Arch: IPageTableArchAttribute + 'static, PTE: IArchPageTableEntry + 'static
         Ok(())
     }
 
-    fn translate_phys(&self, paddr: PhysAddr, len: usize) -> Result<&'static mut [u8], MMUError> {
+    fn linear_map_phys(&self, paddr: PhysAddr, len: usize) -> Result<&'static mut [u8], MMUError> {
         let virt = get_linear_vaddr(*paddr) as *mut u8;
 
         Ok(unsafe { core::slice::from_raw_parts_mut(virt, len) })

@@ -154,7 +154,7 @@ pub trait IMMU: Downcast {
         callback: &mut dyn FnMut(&mut [u8], usize) -> bool,
     ) -> Result<(), MMUError>;
 
-    fn translate_phys(&self, paddr: PhysAddr, len: usize) -> Result<&'static mut [u8], MMUError>;
+    fn linear_map_phys(&self, paddr: PhysAddr, len: usize) -> Result<&'static mut [u8], MMUError>;
 
     fn read_bytes(&self, vaddr: VirtAddr, buf: &mut [u8]) -> Result<(), MMUError>;
 

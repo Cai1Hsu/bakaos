@@ -73,7 +73,7 @@ impl<'a> LinuxLoader<'a> {
             let pt = mmu.lock();
 
             let slice = pt
-                .translate_phys(
+                .linear_map_phys(
                     boxed_elf_holding.start().addr(),
                     boxed_elf_holding.as_addr_range().len(),
                 )

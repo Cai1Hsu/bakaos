@@ -39,9 +39,6 @@ pub trait IFrameAllocator {
     /// - The return value is `None` if the physical address is not in the linear mapping window.
     ///   Or if the frame allocator is not responsible for the linear mapping. This method is
     ///   intended to provide a backend option for MMU.
-    ///
-    /// # Safety
-    ///
-    /// Access raw memory may be dangerous, so use it with caution.
-    unsafe fn linear_map(&self, paddr: PhysAddrRange) -> Option<&'static mut [u8]>;
+    #[allow(clippy::mut_from_ref)]
+    fn linear_map(&self, paddr: PhysAddrRange) -> Option<&'static mut [u8]>;
 }

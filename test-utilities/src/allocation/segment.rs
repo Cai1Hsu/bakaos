@@ -117,12 +117,14 @@ impl IFrameAllocator for TestFrameAllocator {
         false
     }
 
-    unsafe fn linear_map(&self, paddr: PhysAddrRange) -> Option<&'static mut [u8]> {
+    fn linear_map(&self, paddr: PhysAddrRange) -> Option<&'static mut [u8]> {
         if self.check_paddr(paddr) {
-            Some(std::slice::from_raw_parts_mut(
-                *paddr.start() as *mut u8,
-                paddr.len(),
-            ))
+            unsafe {
+                Some(std::slice::from_raw_parts_mut(
+                    *paddr.start() as *mut u8,
+                    paddr.len(),
+                ))
+            }
         } else {
             None
         }
