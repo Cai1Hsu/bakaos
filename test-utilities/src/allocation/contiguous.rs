@@ -75,7 +75,7 @@ impl IFrameAllocator for TestFrameAllocator {
         self.inner.bottom().addr() <= paddr.start() && paddr.end() <= self.inner.top().addr()
     }
 
-    fn linear_map(&self, paddr: address::PhysAddrRange) -> Option<&'static mut [u8]> {
+    unsafe fn linear_map(&self, paddr: address::PhysAddrRange) -> Option<&'static mut [u8]> {
         if !paddr.start().is_null() && self.check_paddr(paddr) {
             Some(unsafe { std::slice::from_raw_parts_mut(*paddr.start() as *mut u8, paddr.len()) })
         } else {

@@ -277,10 +277,12 @@ impl IMMU for TestMMU {
     }
 
     fn linear_map_phys(&self, paddr: PhysAddr, len: usize) -> Result<&'static mut [u8], MMUError> {
-        self.alloc
-            .lock()
-            .linear_map(PhysAddrRange::from_start_len(paddr, len))
-            .ok_or(MMUError::AccessFault)
+        unsafe {
+            self.alloc
+                .lock()
+                .linear_map(PhysAddrRange::from_start_len(paddr, len))
+                .ok_or(MMUError::AccessFault)
+        }
     }
 
     fn platform_payload(&self) -> usize {
