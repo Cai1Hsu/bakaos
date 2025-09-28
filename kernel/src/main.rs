@@ -106,8 +106,7 @@ static ELF: &[u8] = include_bytes!("../../hello-world/hello-la");
 static ELF: &[u8] = include_bytes!("../../hello-world/hello-rv");
 
 fn create_task(kernel: &Kernel) -> Arc<dyn ILinuxTask> {
-    let mmu: Arc<SpinMutex<dyn IMMU>> =
-        Arc::new(SpinMutex::new(PageTable::alloc(kernel.allocator())));
+    let mmu = kernel.create_mmu(Some(kernel.global_frame_alloc()));
 
     let ctx = ProcessContext::new();
 

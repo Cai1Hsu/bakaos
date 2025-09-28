@@ -66,7 +66,7 @@ impl IKernel for TestKernel {
         self.fs.as_ref().unwrap().clone()
     }
 
-    fn allocator(&self) -> Arc<SpinMutex<dyn IFrameAllocator>> {
+    fn global_frame_alloc(&self) -> Arc<SpinMutex<dyn IFrameAllocator>> {
         self.allocator.as_ref().unwrap().clone()
     }
 
