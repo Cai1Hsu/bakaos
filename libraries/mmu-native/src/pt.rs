@@ -477,7 +477,10 @@ impl<Arch: IPageTableArchAttribute + 'static, PTE: IArchPageTableEntry + 'static
                 }
 
                 return Ok(unsafe {
-                    core::slice::from_raw_parts_mut(vaddr.as_mut_ptr::<u8>().add(page_offset), len)
+                    core::slice::from_raw_parts_mut(
+                        vaddr.as_mut_ptr::<u8>().add(slice_offset.unwrap()),
+                        len,
+                    )
                 });
             }
 
