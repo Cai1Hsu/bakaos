@@ -172,7 +172,7 @@ mod tests {
         let (alloc, mmu) = TestFrameAllocator::new_with_mmu(MEMORY_RANGE);
 
         let kernel = TestKernel::new()
-            .with_allocator(Some(alloc.clone()))
+            .with_alloc(Some(alloc.clone()))
             .build();
 
         (kernel, alloc, mmu)
