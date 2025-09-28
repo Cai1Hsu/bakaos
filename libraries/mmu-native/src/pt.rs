@@ -324,7 +324,7 @@ impl<Arch: IPageTableArchAttribute + 'static, PTE: IArchPageTableEntry + 'static
         Ok(())
     }
 
-    fn translate_phys(&self, paddr: PhysAddr, len: usize) -> Result<&'static mut [u8], MMUError> {
+    fn linear_map_phys(&self, paddr: PhysAddr, len: usize) -> Result<&'static mut [u8], MMUError> {
         let virt = get_linear_vaddr(*paddr) as *mut u8;
 
         Ok(unsafe { core::slice::from_raw_parts_mut(virt, len) })
@@ -477,7 +477,10 @@ impl<Arch: IPageTableArchAttribute + 'static, PTE: IArchPageTableEntry + 'static
                 }
 
                 return Ok(unsafe {
-                    core::slice::from_raw_parts_mut(vaddr.as_mut_ptr::<u8>().add(page_offset), len)
+                    core::slice::from_raw_parts_mut(
+                        vaddr.as_mut_ptr::<u8>().add(slice_offset.unwrap()),
+                        len,
+                    )
                 });
             }
 
@@ -493,6 +496,10 @@ impl<Arch: IPageTableArchAttribute + 'static, PTE: IArchPageTableEntry + 'static
 
             self.unmap_single(window.vaddr).ok();
         }
+    }
+
+    fn bound_alloc(&self) -> Option<Arc<SpinMutex<dyn IFrameAllocator>>> {
+        self.allocation.as_ref().map(|a| a.allocator.clone())
     }
 }
 

@@ -16,8 +16,6 @@ use linux_loader::{LinuxLoader, ProcessContext, RawMemorySpace};
 use linux_syscalls::{ISyscallResult, SyscallContext};
 use linux_task::LinuxProcess;
 use linux_task_abstractions::ILinuxTask;
-use mmu_abstractions::IMMU;
-use mmu_native::PageTable;
 use platform_abstractions::{return_to_user, UserInterrupt};
 use platform_specific::{legacy_println, virt_to_phys, SyscallPayload};
 use task_abstractions::ITask;
@@ -106,12 +104,12 @@ static ELF: &[u8] = include_bytes!("../../hello-world/hello-la");
 static ELF: &[u8] = include_bytes!("../../hello-world/hello-rv");
 
 fn create_task(kernel: &Kernel) -> Arc<dyn ILinuxTask> {
-    let mmu: Arc<SpinMutex<dyn IMMU>> =
-        Arc::new(SpinMutex::new(PageTable::alloc(kernel.allocator())));
+    let mmu = kernel.create_mmu(Some(kernel.global_frame_alloc()));
 
     let ctx = ProcessContext::new();
 
-    let memory_space: RawMemorySpace = (mmu, kernel.allocator());
+    let alloc = mmu.lock().bound_alloc().unwrap();
+    let memory_space: RawMemorySpace = (mmu, alloc);
 
     let loader = LinuxLoader::from_elf(&ELF, "", ctx, &memory_space).unwrap();
 

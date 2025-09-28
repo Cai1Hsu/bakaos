@@ -20,11 +20,16 @@ pub trait IKernel: Downcast {
 
     fn fs(&self) -> Arc<SpinMutex<Arc<DirectoryTreeNode>>>;
 
-    fn allocator(&self) -> Arc<SpinMutex<dyn IFrameAllocator>>;
+    fn global_frame_alloc(&self) -> Arc<SpinMutex<dyn IFrameAllocator>>;
 
     fn activate_mmu(&self, pt: &dyn IMMU);
 
     fn time(&self) -> TimeSpec;
+
+    fn create_mmu(
+        &self,
+        alloc: Option<Arc<SpinMutex<dyn IFrameAllocator>>>,
+    ) -> Arc<SpinMutex<dyn IMMU>>;
 }
 
 impl_downcast!(IKernel);

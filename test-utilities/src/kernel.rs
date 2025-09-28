@@ -2,6 +2,7 @@ use allocation_abstractions::IFrameAllocator;
 use filesystem_abstractions::DirectoryTreeNode;
 use hermit_sync::SpinMutex;
 use kernel_abstractions::{IKernel, IKernelSerial};
+use mmu_abstractions::IMMU;
 use std::{
     collections::vec_deque::VecDeque,
     sync::Arc,
@@ -9,6 +10,8 @@ use std::{
     vec::Vec,
 };
 use timing::TimeSpec;
+
+use crate::memory::TestMMU;
 
 pub struct TestKernel {
     pub serial: Option<Arc<dyn IKernelSerial>>,
@@ -63,11 +66,18 @@ impl IKernel for TestKernel {
         self.fs.as_ref().unwrap().clone()
     }
 
-    fn allocator(&self) -> Arc<SpinMutex<dyn IFrameAllocator>> {
+    fn global_frame_alloc(&self) -> Arc<SpinMutex<dyn IFrameAllocator>> {
         self.allocator.as_ref().unwrap().clone()
     }
 
-    fn activate_mmu(&self, _pt: &dyn mmu_abstractions::IMMU) {}
+    fn activate_mmu(&self, _pt: &dyn IMMU) {}
+
+    fn create_mmu(
+        &self,
+        alloc: Option<Arc<SpinMutex<dyn IFrameAllocator>>>,
+    ) -> Arc<SpinMutex<dyn IMMU>> {
+        TestMMU::new(alloc.expect("Corresponding allocator must be provided"))
+    }
 
     fn time(&self) -> TimeSpec {
         let now = SystemTime::now();

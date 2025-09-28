@@ -6,7 +6,7 @@ use allocation_abstractions::{FrameDesc, FrameRangeDesc, IFrameAllocator};
 use hermit_sync::SpinMutex;
 use mmu_abstractions::IMMU;
 
-use crate::{allocation::ITestFrameAllocator, memory::TestMMU};
+use crate::memory::TestMMU;
 
 pub struct TestFrameAllocator {
     records: BTreeMap<PhysAddr, HostMemory>,
@@ -32,26 +32,6 @@ impl TestFrameAllocator {
         }));
 
         (alloc.clone(), TestMMU::new(alloc))
-    }
-}
-
-impl ITestFrameAllocator for TestFrameAllocator {
-    fn check_paddr(&self, paddr: PhysAddr, len: usize) -> bool {
-        let range = PhysAddrRange::from_start_len(paddr, len);
-
-        for mem in self.records.values() {
-            let target_range = mem.paddr_range();
-
-            if target_range.intersects(range) {
-                return true;
-            }
-        }
-
-        false
-    }
-
-    fn linear_map(&self, _: PhysAddr) -> Option<*mut u8> {
-        None
     }
 }
 
@@ -123,6 +103,31 @@ impl IFrameAllocator for TestFrameAllocator {
     fn dealloc_range(&mut self, range: allocation_abstractions::FrameRangeDesc) {
         self.records.remove(&range.start().addr());
         core::mem::forget(range);
+    }
+
+    fn check_paddr(&self, paddr: PhysAddrRange) -> bool {
+        for mem in self.records.values() {
+            let target_range = mem.paddr_range();
+
+            if target_range.contains(paddr) {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    unsafe fn linear_map(&self, paddr: PhysAddrRange) -> Option<&'static mut [u8]> {
+        if self.check_paddr(paddr) {
+            unsafe {
+                Some(std::slice::from_raw_parts_mut(
+                    *paddr.start() as *mut u8,
+                    paddr.len(),
+                ))
+            }
+        } else {
+            None
+        }
     }
 }
 

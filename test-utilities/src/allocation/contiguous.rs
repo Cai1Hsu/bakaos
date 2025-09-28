@@ -7,7 +7,7 @@ use allocation_abstractions::IFrameAllocator;
 use hermit_sync::SpinMutex;
 use mmu_abstractions::IMMU;
 
-use crate::{allocation::ITestFrameAllocator, memory::TestMMU};
+use crate::memory::TestMMU;
 
 pub struct TestFrameAllocator {
     inner: FrameAllocator,
@@ -47,16 +47,6 @@ impl TestFrameAllocator {
     }
 }
 
-impl ITestFrameAllocator for TestFrameAllocator {
-    fn check_paddr(&self, paddr: PhysAddr, len: usize) -> bool {
-        self.inner.bottom().addr() <= paddr && paddr + len < self.inner.top().addr()
-    }
-
-    fn linear_map(&self, paddr: PhysAddr) -> Option<*mut u8> {
-        Some(*paddr as *mut u8)
-    }
-}
-
 impl IFrameAllocator for TestFrameAllocator {
     fn alloc_frame(&mut self) -> Option<allocation_abstractions::FrameDesc> {
         self.inner.alloc_frame()
@@ -79,6 +69,18 @@ impl IFrameAllocator for TestFrameAllocator {
 
     fn dealloc_range(&mut self, range: allocation_abstractions::FrameRangeDesc) {
         self.inner.dealloc_range(range)
+    }
+
+    fn check_paddr(&self, paddr: address::PhysAddrRange) -> bool {
+        self.inner.bottom().addr() <= paddr.start() && paddr.end() <= self.inner.top().addr()
+    }
+
+    unsafe fn linear_map(&self, paddr: address::PhysAddrRange) -> Option<&'static mut [u8]> {
+        if !paddr.start().is_null() && self.check_paddr(paddr) {
+            Some(unsafe { std::slice::from_raw_parts_mut(*paddr.start() as *mut u8, paddr.len()) })
+        } else {
+            None
+        }
     }
 }
 
