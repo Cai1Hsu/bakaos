@@ -113,7 +113,7 @@ mod tests {
     fn setup_kernel_with_memory() -> KernelSetup {
         let (alloc, mmu) = TestFrameAllocator::new_with_mmu();
 
-        let kernel = TestKernel::new().with_alloc(Some(alloc.clone())).build();
+        let kernel = TestKernel::new().build();
 
         (kernel, alloc, mmu)
     }
