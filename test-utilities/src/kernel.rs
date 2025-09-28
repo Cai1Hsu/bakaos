@@ -33,7 +33,7 @@ impl TestKernel {
         Self {
             serial: None,
             fs: None,
-            alloc: None,
+            alloc: Some(alloc::create_global_frame_alloc()),
         }
     }
 
@@ -137,5 +137,36 @@ impl IKernelSerial for TestSerial {
 
     fn recv(&self) -> Option<u8> {
         self.input.lock().pop_front()
+    }
+}
+
+#[cfg(not(target_os = "none"))]
+pub(super) mod alloc {
+    use super::*;
+
+    pub fn create_global_frame_alloc() -> Arc<SpinMutex<dyn IFrameAllocator>> {
+        crate::allocation::segment::TestFrameAllocator::new()
+    }
+}
+
+#[cfg(target_os = "none")]
+pub(super) mod alloc {
+    use super::*;
+
+    fn create_global_frame_alloc() -> Arc<SpinMutex<dyn IFrameAllocator>> {
+        #[linkage = "weak"]
+        static _ALLOC: Option<Arc<SpinMutex<dyn IFrameAllocator + Send + Sync>>> = None;
+
+        unsafe extern "Rust" {
+            #[link_name = "__global_frame_alloc"]
+            static GLOBAL_ALLOC: Option<Arc<SpinMutex<dyn IFrameAllocator + Send + Sync>>>;
+        }
+
+        unsafe {
+            GLOBAL_ALLOC
+                .as_ref()
+                .expect("Global allocator must be provided")
+                .clone()
+        }
     }
 }
