@@ -16,8 +16,6 @@ use linux_loader::{LinuxLoader, ProcessContext, RawMemorySpace};
 use linux_syscalls::{ISyscallResult, SyscallContext};
 use linux_task::LinuxProcess;
 use linux_task_abstractions::ILinuxTask;
-use mmu_abstractions::IMMU;
-use mmu_native::PageTable;
 use platform_abstractions::{return_to_user, UserInterrupt};
 use platform_specific::{legacy_println, virt_to_phys, SyscallPayload};
 use task_abstractions::ITask;
@@ -110,7 +108,8 @@ fn create_task(kernel: &Kernel) -> Arc<dyn ILinuxTask> {
 
     let ctx = ProcessContext::new();
 
-    let memory_space: RawMemorySpace = (mmu, kernel.allocator());
+    let alloc = mmu.lock().bound_alloc().unwrap();
+    let memory_space: RawMemorySpace = (mmu, alloc);
 
     let loader = LinuxLoader::from_elf(&ELF, "", ctx, &memory_space).unwrap();
 

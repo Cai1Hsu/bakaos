@@ -42,7 +42,7 @@ impl IKernel for Kernel {
         todo!()
     }
 
-    fn allocator(&self) -> Arc<SpinMutex<dyn IFrameAllocator>> {
+    fn global_frame_alloc(&self) -> Arc<SpinMutex<dyn IFrameAllocator>> {
         self.allocator.clone()
     }
 

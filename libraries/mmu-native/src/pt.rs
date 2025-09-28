@@ -494,6 +494,10 @@ impl<Arch: IPageTableArchAttribute + 'static, PTE: IArchPageTableEntry + 'static
             self.unmap_single(window.vaddr).ok();
         }
     }
+
+    fn bound_alloc(&self) -> Option<Arc<SpinMutex<dyn IFrameAllocator>>> {
+        self.allocation.as_ref().map(|a| a.allocator.clone())
+    }
 }
 
 impl<Arch: IPageTableArchAttribute + 'static, PTE: IArchPageTableEntry + 'static>

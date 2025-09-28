@@ -425,6 +425,10 @@ impl IMMU for TestMMU {
 
         source.unmap_buffer(vaddr);
     }
+
+    fn bound_alloc(&self) -> Option<Arc<SpinMutex<dyn IFrameAllocator>>> {
+        Some(self.alloc.clone())
+    }
 }
 
 impl TestMMU {

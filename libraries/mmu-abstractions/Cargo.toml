@@ -13,6 +13,8 @@ doctest = false
 bitflags = "2.9"
 downcast-rs = { version = "2.0", default-features = false, features = ["sync"] }
 address = { path = "../address", default-features = false }
+allocation-abstractions = { path = "../allocation-abstractions" }
+hermit-sync = "0.1.6"
 
 [features]
 default = ["no_std"]

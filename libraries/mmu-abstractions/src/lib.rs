@@ -11,8 +11,11 @@ extern crate alloc;
 
 mod flags;
 
+use alloc::sync::Arc;
+use allocation_abstractions::IFrameAllocator;
 use downcast_rs::{impl_downcast, Downcast};
 pub use flags::GenericMappingFlags;
+use hermit_sync::SpinMutex;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MMUError {
@@ -103,6 +106,8 @@ impl dyn IMMU {
 }
 
 pub trait IMMU: Downcast {
+    fn bound_alloc(&self) -> Option<Arc<SpinMutex<dyn IFrameAllocator>>>;
+
     fn map_single(
         &mut self,
         vaddr: VirtAddr,
